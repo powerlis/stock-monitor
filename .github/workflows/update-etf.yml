@@ -18,9 +18,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
-        run: |
-          pip install requests python-dotenv firebase-admin yfinance
+     - name: Install dependencies
+  run: |
+    pip install requests python-dotenv firebase-admin yfinance
 
       - name: Create Firebase service key
         run: |

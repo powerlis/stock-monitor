@@ -1,4 +1,3 @@
-```javascript
 import { db } from "./firebase-config.js";
 
 import {
@@ -679,4 +678,3 @@ setInterval(async () => {
   await loadComponentsFromFirestore();
 
 }, 30000);
-```

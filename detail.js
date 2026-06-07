@@ -42,8 +42,8 @@ async function loadStockDetail(code) {
 
   const stock = stockSnap.data();
 
-  const current = Number(stock.current);
-  const previous = Number(stock.previous);
+  const current = Number(stock.current || 0);
+  const previous = Number(stock.previous || 0);
   const diff = current - previous;
   const rate = previous === 0 ? 0 : diff / previous;
   const cls = getChangeClass(diff);
@@ -165,6 +165,9 @@ function renderPriceChart(history, mode) {
 
   const high = Math.max(...prices);
   const low = Math.min(...prices);
+  const isFlat = high === low;
+
+  const yPadding = isFlat ? Math.max(1, high * 0.01) : 0;
 
   const titleText = mode === "daily"
     ? `일별 추이 - 최고 ${formatNumber(high)}원 / 최저 ${formatNumber(low)}원`
@@ -178,8 +181,10 @@ function renderPriceChart(history, mode) {
         {
           label: mode === "daily" ? "일별 종가" : "당일 현재가",
           data: prices,
-          tension: 0.35,
-          pointRadius: 2
+          tension: isFlat ? 0 : 0.35,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          fill: false
         }
       ]
     },
@@ -204,6 +209,8 @@ function renderPriceChart(history, mode) {
       },
       scales: {
         y: {
+          suggestedMin: isFlat ? low - yPadding : undefined,
+          suggestedMax: isFlat ? high + yPadding : undefined,
           ticks: {
             callback: function (value) {
               return formatNumber(value);

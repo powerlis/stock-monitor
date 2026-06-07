@@ -1,0 +1,6 @@
+py -m http.server 5500
+
+py kis-update-etf.py
+
+
+종목코드가 0045K0 가 아니라, 0048K0 였습니다. 어디를 수정하면 되나요?

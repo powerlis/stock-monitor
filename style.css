@@ -1,0 +1,420 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Apple SD Gothic Neo", Arial, sans-serif;
+  background: #f3f6fb;
+  color: #172033;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+/* ---------------- HEADER ---------------- */
+
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #2f6fed;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.desc {
+  margin: 10px 0 0;
+  color: #667085;
+}
+
+/* ---------------- STATUS CARD ---------------- */
+
+.status-card {
+  min-width: 220px;
+  background: white;
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
+}
+
+.status-card p {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 14px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  background: #16a34a;
+  border-radius: 50%;
+  box-shadow: 0 0 0 8px rgba(22,163,74,0.12);
+}
+
+/* ---------------- SUMMARY ---------------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.card {
+  background: white;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
+}
+
+.card span {
+  display: block;
+  color: #667085;
+  margin-bottom: 10px;
+}
+
+.card strong {
+  font-size: 28px;
+}
+
+/* ---------------- TOOLBAR ---------------- */
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+input,
+select,
+button {
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: white;
+  font-size: 15px;
+}
+
+input {
+  flex: 1;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ---------------- TABLE COMMON ---------------- */
+
+.table-wrap {
+  overflow-x: auto;
+  width: 100%;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1150px;
+}
+
+th {
+  background: #111827;
+  color: white;
+  font-size: 14px;
+  padding: 14px 12px;
+  white-space: nowrap;
+}
+
+td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #eef2f7;
+  text-align: center;
+  white-space: nowrap;
+}
+
+td.name,
+.etf-name {
+  text-align: left;
+  font-weight: 800;
+}
+
+/* ---------------- BADGE ---------------- */
+
+.badge {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* ---------------- COLORS ---------------- */
+
+.up,
+.profit-plus {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.down,
+.profit-minus {
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.flat {
+  color: #667085;
+}
+
+/* ---------------- ROW ---------------- */
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f8fafc;
+}
+
+/* ---------------- ETF ---------------- */
+
+.etf-section {
+  margin-bottom: 22px;
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-end;
+  margin: 8px 0 12px;
+}
+
+.section-title h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.section-title p {
+  margin: 0;
+  color: #667085;
+}
+
+.etf-table-wrap {
+  border: 2px solid #dbeafe;
+}
+
+.etf-table-wrap th {
+  background: #1e3a8a;
+}
+
+/* ---------------- ASSET SECTION ---------------- */
+
+.asset-section {
+  margin: 24px 0 28px;
+}
+
+.asset-section h2 {
+  margin: 0 0 18px;
+  font-size: 22px;
+}
+
+.asset-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+  background: #f3f4f6;
+  padding: 5px;
+  border-radius: 14px;
+}
+
+.asset-tab {
+  background: transparent;
+  color: #374151;
+  border: 0;
+  border-radius: 11px;
+  padding: 11px;
+  font-weight: 700;
+}
+
+.asset-tab.active {
+  background: white;
+  color: #111827;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+}
+
+.asset-panel {
+  width: 100%;
+}
+
+.asset-panel.table-wrap {
+  padding: 0;
+}
+
+.asset-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1150px;
+}
+
+.asset-table th {
+  background: #1f2937;
+}
+
+.asset-table td {
+  text-align: center;
+}
+
+.asset-table input {
+  width: 120px;
+  text-align: right;
+}
+
+.hidden {
+  display: none;
+}
+
+.save-btn {
+  margin-top: 14px;
+  float: right;
+  background: #111827;
+  color: white;
+  border: 0;
+}
+
+/* ---------------- DETAIL PAGE ---------------- */
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #2563eb;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.chart-card,
+.chart-section,
+.history-card {
+  background: white;
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
+  margin-bottom: 18px;
+}
+
+.chart-card h2,
+.chart-section h2,
+.history-card h2 {
+  margin-top: 0;
+}
+
+/* ---------------- CHART TABS ---------------- */
+
+.chart-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.chart-tab {
+  background: #eef2ff;
+  color: #3730a3;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chart-tab.active {
+  background: #1e3a8a;
+  color: white;
+}
+
+/* ---------------- CHART ---------------- */
+
+.chart-wrap {
+  position: relative;
+  height: 420px;
+}
+
+#priceChart,
+#closeChart {
+  width: 100%;
+  height: 420px;
+}
+
+/* ---------------- RESPONSIVE ---------------- */
+
+@media (max-width: 900px) {
+
+  .app {
+    padding: 18px;
+  }
+
+  header,
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .summary,
+  .detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .toolbar {
+    flex-direction: column;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

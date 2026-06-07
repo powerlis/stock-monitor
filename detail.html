@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>종목 상세</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="app">
+
+    <a class="back-link" href="index.html">← 목록으로 돌아가기</a>
+
+    <!-- 상세 헤더 -->
+    <section class="detail-header">
+
+      <div>
+        <p class="eyebrow" id="detailCode">CODE</p>
+        <h1 id="detailName">종목 상세</h1>
+        <p class="desc">
+          일별 추이와 당일 추이를 구분하여 확인할 수 있습니다.
+        </p>
+      </div>
+
+      <div class="status-card">
+        <span class="dot"></span>
+        <div>
+          <strong>상세 페이지</strong>
+          <p id="detailTime">-</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 주요 정보 -->
+    <section class="detail-grid">
+
+      <div class="card">
+        <span>현재가</span>
+        <strong id="current">-</strong>
+      </div>
+
+      <div class="card">
+        <span>전일</span>
+        <strong id="previous">-</strong>
+      </div>
+
+      <div class="card">
+        <span>등락률</span>
+        <strong id="changeRate">-</strong>
+      </div>
+
+      <div class="card">
+        <span>거래량</span>
+        <strong id="volume">-</strong>
+      </div>
+
+    </section>
+
+    <!-- 차트 -->
+    <section class="chart-section">
+
+      <div class="chart-tabs">
+        <button id="dailyTab" class="chart-tab active">
+          일별 추이
+        </button>
+
+        <button id="intradayTab" class="chart-tab">
+          당일 추이
+        </button>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+      </div>
+
+    </section>
+
+    <!-- 히스토리 테이블 -->
+    <section class="history-card">
+
+      <h2>누적 데이터</h2>
+
+      <div class="table-wrap">
+
+        <table>
+          <thead>
+            <tr>
+              <th>날짜/시간</th>
+              <th>가격</th>
+              <th>거래량</th>
+            </tr>
+          </thead>
+
+          <tbody id="historyTable"></tbody>
+        </table>
+
+      </div>
+
+    </section>
+
+  </div>
+
+  <script type="module" src="detail.js"></script>
+</body>
+</html>

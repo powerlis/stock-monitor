@@ -72,6 +72,7 @@ h1 {
   height: 12px;
   background: #16a34a;
   border-radius: 50%;
+  box-shadow: 0 0 0 8px rgba(22,163,74,0.12);
 }
 
 .summary,
@@ -128,7 +129,7 @@ button {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1150px;
+  min-width: 1200px;
 }
 
 th {
@@ -292,6 +293,21 @@ td.name,
   border: 0;
 }
 
+.link-btn {
+  background: #03c75a;
+  color: white;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.link-btn:hover {
+  opacity: 0.85;
+}
+
 .back-link {
   display: inline-block;
   margin-bottom: 16px;
@@ -300,11 +316,21 @@ td.name,
   text-decoration: none;
 }
 
+.back-link:hover {
+  text-decoration: underline;
+}
+
 .chart-card,
 .chart-section,
 .history-card {
   padding: 22px;
   margin-bottom: 18px;
+}
+
+.chart-card h2,
+.chart-section h2,
+.history-card h2 {
+  margin-top: 0;
 }
 
 .chart-tabs {
@@ -417,13 +443,18 @@ td.name,
   }
 
   table {
-    min-width: 1050px;
+    min-width: 1150px;
   }
 
   th,
   td {
     font-size: 13px;
     padding: 11px 9px;
+  }
+
+  .link-btn {
+    padding: 7px 10px;
+    font-size: 13px;
   }
 }
 

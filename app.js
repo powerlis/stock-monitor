@@ -34,6 +34,11 @@ window.goDetail = function (code) {
   location.href = `detail.html?code=${encodeURIComponent(code)}`;
 };
 
+window.openNaver = function (url) {
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
 async function loadEtfFromFirestore() {
   const docRef = doc(db, "stocks", ETF_CODE);
   const docSnap = await getDoc(docRef);
@@ -262,6 +267,9 @@ function renderStocks() {
 
   stocks.forEach((stock, index) => {
     const cls = getChangeClass(stock.diff);
+    const naverButton = stock.naverUrl
+      ? `<button class="link-btn" onclick="event.stopPropagation(); openNaver('${stock.naverUrl}')">네이버</button>`
+      : "-";
 
     tbody.innerHTML += `
       <tr class="clickable-row" onclick="goDetail('${stock.code}')">
@@ -278,6 +286,7 @@ function renderStocks() {
         <td>${formatNumber(stock.low)}</td>
         <td>${formatNumber(stock.volume)}</td>
         <td>${stock.market}</td>
+        <td>${naverButton}</td>
       </tr>
     `;
   });

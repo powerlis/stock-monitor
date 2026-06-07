@@ -8,14 +8,10 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// 구성종목은 아직 data.js 샘플 사용
-const sampleStocks = window.sampleStocks;
-
-// ETF 실제 종목코드
 const ETF_CODE = "0048K0";
 
-// ETF 데이터는 Firestore에서 가져와서 여기에 저장
-let etfStock = window.etfStock;
+let etfStock = null;
+let componentStocks = [];
 
 function formatNumber(value) {
   if (value === null || value === undefined || isNaN(value)) return "-";
@@ -37,45 +33,14 @@ window.goDetail = function (code) {
   location.href = `detail.html?code=${encodeURIComponent(code)}`;
 };
 
-// Firestore에서 ETF 현재가 읽기
 async function loadEtfFromFirestore() {
-  try {
-    const docRef = doc(db, "stocks", ETF_CODE);
-    const docSnap = await getDoc(docRef);
+  const docRef = doc(db, "stocks", ETF_CODE);
+  const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
-      etfStock = docSnap.data();
-      window.etfStock = etfStock;
-
-      loadEtf();
-      await renderAssetStatus();
-
-      console.log("ETF Firestore 데이터 불러오기 성공:", etfStock);
-    } else {
-      console.log(`Firestore에 stocks/${ETF_CODE} 문서가 없습니다.`);
-
-      etfStock = {
-        type: "ETF",
-        name: "KODEX 차이나휴머노이드로봇",
-        code: ETF_CODE,
-        current: 0,
-        previous: 0,
-        open: 0,
-        high: 0,
-        low: 0,
-        volume: 0,
-        market: "한국"
-      };
-
-      window.etfStock = etfStock;
-
-      loadEtf();
-      await renderAssetStatus();
-    }
-  } catch (error) {
-    console.error("ETF Firestore 데이터 불러오기 실패:", error);
-
-    etfStock = window.etfStock || {
+  if (docSnap.exists()) {
+    etfStock = docSnap.data();
+  } else {
+    etfStock = {
       type: "ETF",
       name: "KODEX 차이나휴머노이드로봇",
       code: ETF_CODE,
@@ -87,13 +52,44 @@ async function loadEtfFromFirestore() {
       volume: 0,
       market: "한국"
     };
-
-    loadEtf();
-    await renderAssetStatus();
   }
+
+  window.etfStock = etfStock;
+  loadEtf();
+  await renderAssetStatus();
 }
 
-// Firestore에서 계좌 데이터 읽기
+async function loadComponentsFromFirestore() {
+  const querySnapshot = await getDocs(collection(db, "stocks"));
+
+  const stocks = [];
+
+  querySnapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+
+    if (data.type === "COMPONENT") {
+      const current = Number(data.current || 0);
+      const previous = Number(data.previous || 0);
+      const diff = current - previous;
+      const changeRate = previous === 0 ? 0 : diff / previous;
+
+      stocks.push({
+        id: docSnap.id,
+        ...data,
+        current,
+        previous,
+        diff,
+        changeRate
+      });
+    }
+  });
+
+  stocks.sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999));
+
+  componentStocks = stocks;
+  renderStocks();
+}
+
 async function getAssetAccounts() {
   const querySnapshot = await getDocs(collection(db, "accounts"));
 
@@ -111,7 +107,6 @@ async function getAssetAccounts() {
   return accounts;
 }
 
-// 자산현황 표시
 async function renderAssetStatus() {
   if (!etfStock) return;
 
@@ -131,11 +126,7 @@ async function renderAssetStatus() {
     const avgPrice = Number(item.avgPrice);
 
     const profit = (currentPrice - avgPrice) * quantity;
-
-    const profitRate = avgPrice === 0
-      ? 0
-      : ((currentPrice - avgPrice) / avgPrice) * 100;
-
+    const profitRate = avgPrice === 0 ? 0 : ((currentPrice - avgPrice) / avgPrice) * 100;
     const profitClass = profit >= 0 ? "profit-plus" : "profit-minus";
 
     profitTable.innerHTML += `
@@ -163,7 +154,6 @@ async function renderAssetStatus() {
   });
 }
 
-// 자산현황 탭 전환
 window.showAssetTab = function (tab) {
   const profitPanel = document.getElementById("profitPanel");
   const editPanel = document.getElementById("editPanel");
@@ -183,7 +173,6 @@ window.showAssetTab = function (tab) {
   }
 };
 
-// Firestore에 매입단가/주식수 저장
 window.saveAssetAccounts = async function () {
   const accounts = await getAssetAccounts();
 
@@ -195,8 +184,8 @@ window.saveAssetAccounts = async function () {
     const avgPrice = Number(avgInput.value);
 
     await updateDoc(doc(db, "accounts", item.id), {
-      quantity: quantity,
-      avgPrice: avgPrice
+      quantity,
+      avgPrice
     });
   }
 
@@ -209,19 +198,15 @@ window.saveAssetAccounts = async function () {
 function loadEtf() {
   if (!etfStock) return;
 
-  const current = Number(etfStock.current);
-  const previous = Number(etfStock.previous);
-  const open = Number(etfStock.open);
-  const high = Number(etfStock.high);
-  const low = Number(etfStock.low);
-  const volume = Number(etfStock.volume);
+  const current = Number(etfStock.current || 0);
+  const previous = Number(etfStock.previous || 0);
+  const open = Number(etfStock.open || 0);
+  const high = Number(etfStock.high || 0);
+  const low = Number(etfStock.low || 0);
+  const volume = Number(etfStock.volume || 0);
 
   const diff = current - previous;
-
-  const changeRate = previous === 0
-    ? 0
-    : diff / previous;
-
+  const changeRate = previous === 0 ? 0 : diff / previous;
   const cls = getChangeClass(diff);
 
   const etfTable = document.getElementById("etfTable");
@@ -245,12 +230,7 @@ function loadEtf() {
   `;
 }
 
-function loadStocks() {
-  if (!sampleStocks) {
-    console.error("sampleStocks 데이터를 찾을 수 없습니다.");
-    return;
-  }
-
+function renderStocks() {
   const searchInput = document.getElementById("searchInput");
   const sortSelect = document.getElementById("sortSelect");
   const tbody = document.getElementById("stockTable");
@@ -260,31 +240,19 @@ function loadStocks() {
   const keyword = searchInput.value.trim().toLowerCase();
   const sortKey = sortSelect.value;
 
-  let stocks = [...sampleStocks].map(stock => {
-    const diff = stock.current - stock.previous;
-
-    const changeRate = stock.previous === 0
-      ? 0
-      : diff / stock.previous;
-
-    return {
-      ...stock,
-      diff,
-      changeRate
-    };
-  });
+  let stocks = [...componentStocks];
 
   if (keyword) {
     stocks = stocks.filter(stock =>
-      stock.name.toLowerCase().includes(keyword) ||
-      stock.code.toLowerCase().includes(keyword)
+      String(stock.name || "").toLowerCase().includes(keyword) ||
+      String(stock.code || "").toLowerCase().includes(keyword)
     );
   }
 
   stocks.sort((a, b) => {
-    if (sortKey === "changeRate") return b.changeRate - a.changeRate;
-    if (sortKey === "volume") return b.volume - a.volume;
-    return b.weight - a.weight;
+    if (sortKey === "changeRate") return Number(b.changeRate) - Number(a.changeRate);
+    if (sortKey === "volume") return Number(b.volume) - Number(a.volume);
+    return Number(a.rank || 999) - Number(b.rank || 999);
   });
 
   tbody.innerHTML = "";
@@ -294,7 +262,7 @@ function loadStocks() {
 
     tbody.innerHTML += `
       <tr class="clickable-row" onclick="goDetail('${stock.code}')">
-        <td>${index + 1}</td>
+        <td>${stock.rank || index + 1}</td>
         <td class="name">${stock.name}</td>
         <td><span class="badge">${stock.code}</span></td>
         <td>${formatPercent(stock.weight)}</td>
@@ -325,7 +293,7 @@ function updateSummary(stocks) {
   const downCount = stocks.filter(s => s.diff < 0).length;
 
   const avg = stocks.length
-    ? stocks.reduce((sum, s) => sum + s.changeRate, 0) / stocks.length
+    ? stocks.reduce((sum, s) => sum + Number(s.changeRate || 0), 0) / stocks.length
     : 0;
 
   document.getElementById("stockCount").innerText = stocks.length;
@@ -339,18 +307,16 @@ function updateSummary(stocks) {
 
 window.loadStocks = async function () {
   await loadEtfFromFirestore();
-  loadStocks();
+  await loadComponentsFromFirestore();
 };
 
-document.getElementById("searchInput").addEventListener("input", loadStocks);
-document.getElementById("sortSelect").addEventListener("change", loadStocks);
+document.getElementById("searchInput").addEventListener("input", renderStocks);
+document.getElementById("sortSelect").addEventListener("change", renderStocks);
 
-// 최초 실행
 await loadEtfFromFirestore();
-loadStocks();
+await loadComponentsFromFirestore();
 
-// 30초마다 Firestore ETF 현재가 다시 읽기
 setInterval(async () => {
   await loadEtfFromFirestore();
-  loadStocks();
+  await loadComponentsFromFirestore();
 }, 30000);

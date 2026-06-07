@@ -1,5 +1,4 @@
 import os
-import time
 import requests
 from datetime import datetime
 
@@ -16,8 +15,6 @@ APP_SECRET = os.getenv("KIS_APP_SECRET")
 BASE_URL = "https://openapi.koreainvestment.com:9443"
 STOCK_CODE = "0048K0"
 FIREBASE_KEY_FILE = "firebase-service-key.json"
-
-SAVE_INTERVAL_SECONDS = 60
 
 
 def init_firestore():
@@ -45,6 +42,7 @@ def get_access_token():
     response.raise_for_status()
 
     data = response.json()
+
     return data["access_token"]
 
 
@@ -101,8 +99,10 @@ def update_firestore(db, stock_data):
 
     stock_ref = db.collection("stocks").document(STOCK_CODE)
 
+    # 현재가 최신값 저장
     stock_ref.set(stock_data, merge=True)
 
+    # 날짜별 데이터: 하루에 문서 1개, 계속 덮어쓰기
     daily_data = {
         "date": daily_id,
         "close": stock_data["current"],
@@ -121,6 +121,7 @@ def update_firestore(db, stock_data):
         merge=True
     )
 
+    # 당일 추이 데이터: 1분 단위 문서 누적
     intraday_data = {
         "date": daily_id,
         "time": now.strftime("%H:%M"),
@@ -148,8 +149,7 @@ def update_firestore(db, stock_data):
 
 def main():
     if not APP_KEY or not APP_SECRET:
-        print("KIS_APP_KEY 또는 KIS_APP_SECRET 없음")
-        return
+        raise Exception("KIS_APP_KEY 또는 KIS_APP_SECRET 없음")
 
     db = init_firestore()
     print("Firestore 연결 성공")
@@ -157,21 +157,18 @@ def main():
     token = get_access_token()
     print("KIS Access Token 발급 성공")
 
-    while True:
-        try:
-            stock_data = get_etf_price(token)
-            update_firestore(db, stock_data)
+    try:
+        stock_data = get_etf_price(token)
+        update_firestore(db, stock_data)
 
-        except Exception as e:
-            print("오류 발생:", e)
+    except Exception as e:
+        print("오류 발생:", e)
 
-            try:
-                token = get_access_token()
-                print("토큰 재발급 성공")
-            except Exception as token_error:
-                print("토큰 재발급 실패:", token_error)
+        token = get_access_token()
+        print("토큰 재발급 성공")
 
-        time.sleep(SAVE_INTERVAL_SECONDS)
+        stock_data = get_etf_price(token)
+        update_firestore(db, stock_data)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,8 @@ BASE_URL = "https://openapi.koreainvestment.com:9443"
 STOCK_CODE = "0048K0"
 FIREBASE_KEY_FILE = "firebase-service-key.json"
 
+ETF_NAVER_URL = "https://m.stock.naver.com/domestic/stock/0048K0/total"
+
 
 def init_firestore():
     if not firebase_admin._apps:
@@ -42,7 +44,6 @@ def get_access_token():
     response.raise_for_status()
 
     data = response.json()
-
     return data["access_token"]
 
 
@@ -79,6 +80,7 @@ def get_etf_price(access_token):
         "type": "ETF",
         "name": "KODEX 차이나휴머노이드로봇",
         "code": STOCK_CODE,
+        "naverUrl": ETF_NAVER_URL,
         "current": int(output.get("stck_prpr", 0)),
         "previous": int(output.get("stck_sdpr", 0)),
         "open": int(output.get("stck_oprc", 0)),
@@ -99,10 +101,8 @@ def update_firestore(db, stock_data):
 
     stock_ref = db.collection("stocks").document(STOCK_CODE)
 
-    # 현재가 최신값 저장
     stock_ref.set(stock_data, merge=True)
 
-    # 날짜별 데이터: 하루에 문서 1개, 계속 덮어쓰기
     daily_data = {
         "date": daily_id,
         "close": stock_data["current"],
@@ -121,7 +121,6 @@ def update_firestore(db, stock_data):
         merge=True
     )
 
-    # 당일 추이 데이터: 1분 단위 문서 누적
     intraday_data = {
         "date": daily_id,
         "time": now.strftime("%H:%M"),

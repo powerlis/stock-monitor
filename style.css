@@ -1,4 +1,3 @@
-```css
 * {
   box-sizing: border-box;
 }
@@ -130,7 +129,7 @@ button {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1200px;
+  min-width: 1250px;
 }
 
 th {
@@ -376,7 +375,6 @@ td.name,
 }
 
 @media (max-width: 900px) {
-
   .app {
     padding: 16px;
   }
@@ -454,7 +452,7 @@ td.name,
   }
 
   table {
-    min-width: 1150px;
+    min-width: 1200px;
   }
 
   th,
@@ -470,7 +468,6 @@ td.name,
 }
 
 @media (max-width: 520px) {
-
   .app {
     padding: 12px;
   }
@@ -501,4 +498,3 @@ td.name,
     grid-template-columns: 1fr 1fr;
   }
 }
-```

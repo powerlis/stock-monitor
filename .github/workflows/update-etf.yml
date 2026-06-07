@@ -1,4 +1,3 @@
-```yaml
 name: Update ETF Price
 
 on:
@@ -37,4 +36,3 @@ jobs:
       - name: Run component stocks updater
         run: |
           python update-component-stocks.py
-```

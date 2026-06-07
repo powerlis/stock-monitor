@@ -1,3 +1,4 @@
+```yaml
 name: Update ETF Price
 
 on:
@@ -20,7 +21,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-    pip install requests python-dotenv firebase-admin yfinance
+          pip install requests python-dotenv firebase-admin yfinance
 
       - name: Create Firebase service key
         run: |
@@ -32,3 +33,8 @@ jobs:
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
         run: |
           python kis-update-etf.py
+
+      - name: Run component stocks updater
+        run: |
+          python update-component-stocks.py
+```

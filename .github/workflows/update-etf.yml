@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests python-dotenv firebase-admin
+    pip install requests python-dotenv firebase-admin yfinance
 
       - name: Create Firebase service key
         run: |

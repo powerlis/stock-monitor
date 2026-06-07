@@ -15,9 +15,8 @@ body {
   padding: 28px;
 }
 
-/* ---------------- HEADER ---------------- */
-
-header {
+header,
+.detail-header {
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -29,7 +28,6 @@ header {
   margin: 0 0 8px;
   color: #2f6fed;
   font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
 h1 {
@@ -42,17 +40,25 @@ h1 {
   color: #667085;
 }
 
-/* ---------------- STATUS CARD ---------------- */
+.status-card,
+.card,
+.table-wrap,
+.asset-section,
+.portfolio-chart-card,
+.chart-card,
+.chart-section,
+.history-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
+}
 
 .status-card {
   min-width: 220px;
-  background: white;
-  border-radius: 18px;
   padding: 18px;
   display: flex;
   gap: 12px;
   align-items: center;
-  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
 }
 
 .status-card p {
@@ -66,12 +72,10 @@ h1 {
   height: 12px;
   background: #16a34a;
   border-radius: 50%;
-  box-shadow: 0 0 0 8px rgba(22,163,74,0.12);
 }
 
-/* ---------------- SUMMARY ---------------- */
-
-.summary {
+.summary,
+.detail-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
@@ -79,10 +83,7 @@ h1 {
 }
 
 .card {
-  background: white;
-  border-radius: 18px;
   padding: 20px;
-  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
 }
 
 .card span {
@@ -94,8 +95,6 @@ h1 {
 .card strong {
   font-size: 28px;
 }
-
-/* ---------------- TOOLBAR ---------------- */
 
 .toolbar {
   display: flex;
@@ -121,14 +120,9 @@ button {
   cursor: pointer;
 }
 
-/* ---------------- TABLE COMMON ---------------- */
-
 .table-wrap {
   overflow-x: auto;
   width: 100%;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
 }
 
 table {
@@ -158,8 +152,6 @@ td.name,
   font-weight: 800;
 }
 
-/* ---------------- BADGE ---------------- */
-
 .badge {
   display: inline-block;
   padding: 5px 9px;
@@ -169,8 +161,6 @@ td.name,
   font-weight: 700;
   font-size: 12px;
 }
-
-/* ---------------- COLORS ---------------- */
 
 .up,
 .profit-plus {
@@ -188,8 +178,6 @@ td.name,
   color: #667085;
 }
 
-/* ---------------- ROW ---------------- */
-
 .clickable-row {
   cursor: pointer;
 }
@@ -198,10 +186,10 @@ td.name,
   background: #f8fafc;
 }
 
-/* ---------------- ETF ---------------- */
-
-.etf-section {
-  margin-bottom: 22px;
+.etf-section,
+.portfolio-chart-section,
+.asset-section {
+  margin: 24px 0;
 }
 
 .section-title {
@@ -212,7 +200,8 @@ td.name,
   margin: 8px 0 12px;
 }
 
-.section-title h2 {
+.section-title h2,
+.asset-section h2 {
   margin: 0;
   font-size: 22px;
 }
@@ -230,18 +219,9 @@ td.name,
   background: #1e3a8a;
 }
 
-/* ---------------- PORTFOLIO CHART ---------------- */
-
-.portfolio-chart-section {
-  margin: 24px 0;
-}
-
 .portfolio-chart-card {
-  background: white;
-  border-radius: 20px;
   padding: 24px;
   height: 430px;
-  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
 }
 
 #portfolioChart {
@@ -249,15 +229,13 @@ td.name,
   height: 100%;
 }
 
-/* ---------------- ASSET SECTION ---------------- */
-
 .asset-section {
-  margin: 24px 0 28px;
+  box-shadow: none;
+  background: transparent;
 }
 
 .asset-section h2 {
-  margin: 0 0 18px;
-  font-size: 22px;
+  margin-bottom: 18px;
 }
 
 .asset-tabs {
@@ -289,22 +267,12 @@ td.name,
   width: 100%;
 }
 
-.asset-panel.table-wrap {
-  padding: 0;
-}
-
 .asset-table {
-  width: 100%;
-  border-collapse: collapse;
   min-width: 1150px;
 }
 
 .asset-table th {
   background: #1f2937;
-}
-
-.asset-table td {
-  text-align: center;
 }
 
 .asset-table input {
@@ -324,16 +292,6 @@ td.name,
   border: 0;
 }
 
-/* ---------------- DETAIL PAGE ---------------- */
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 18px;
-  margin-bottom: 18px;
-}
-
 .back-link {
   display: inline-block;
   margin-bottom: 16px;
@@ -342,34 +300,12 @@ td.name,
   text-decoration: none;
 }
 
-.back-link:hover {
-  text-decoration: underline;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
 .chart-card,
 .chart-section,
 .history-card {
-  background: white;
-  border-radius: 20px;
   padding: 22px;
-  box-shadow: 0 10px 30px rgba(31,45,61,0.08);
   margin-bottom: 18px;
 }
-
-.chart-card h2,
-.chart-section h2,
-.history-card h2 {
-  margin-top: 0;
-}
-
-/* ---------------- CHART TABS ---------------- */
 
 .chart-tabs {
   display: flex;
@@ -384,15 +320,12 @@ td.name,
   border-radius: 12px;
   padding: 10px 16px;
   font-weight: 700;
-  cursor: pointer;
 }
 
 .chart-tab.active {
   background: #1e3a8a;
   color: white;
 }
-
-/* ---------------- CHART ---------------- */
 
 .chart-wrap {
   position: relative;
@@ -405,31 +338,58 @@ td.name,
   height: 420px;
 }
 
-/* ---------------- RESPONSIVE ---------------- */
-
+/* 모바일 최적화 */
 @media (max-width: 900px) {
-
   .app {
-    padding: 18px;
+    padding: 16px;
   }
 
   header,
   .detail-header {
     flex-direction: column;
-    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  h1 {
+    font-size: 23px;
+    line-height: 1.35;
+  }
+
+  .desc {
+    font-size: 14px;
+  }
+
+  .status-card {
+    width: 100%;
+    min-width: 0;
   }
 
   .summary,
   .detail-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .card {
+    padding: 15px;
+    border-radius: 16px;
+  }
+
+  .card strong {
+    font-size: 22px;
   }
 
   .toolbar {
     flex-direction: column;
   }
 
-  h1 {
-    font-size: 24px;
+  input,
+  select,
+  button {
+    width: 100%;
+    font-size: 16px;
+    padding: 13px 14px;
   }
 
   .section-title {
@@ -437,7 +397,64 @@ td.name,
     align-items: flex-start;
   }
 
+  .section-title h2,
+  .asset-section h2 {
+    font-size: 20px;
+  }
+
   .portfolio-chart-card {
     height: 360px;
+    padding: 14px;
+  }
+
+  .chart-wrap {
+    height: 330px;
+  }
+
+  #priceChart,
+  #closeChart {
+    height: 330px;
+  }
+
+  table {
+    min-width: 1050px;
+  }
+
+  th,
+  td {
+    font-size: 13px;
+    padding: 11px 9px;
+  }
+}
+
+@media (max-width: 520px) {
+  .app {
+    padding: 12px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  .summary,
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .card span {
+    font-size: 13px;
+  }
+
+  .card strong {
+    font-size: 20px;
+  }
+
+  .portfolio-chart-card {
+    height: 320px;
+  }
+
+  .chart-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }

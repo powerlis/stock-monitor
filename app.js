@@ -12,6 +12,7 @@ const ETF_CODE = "0048K0";
 
 let etfStock = null;
 let componentStocks = [];
+let portfolioChart = null;
 
 function formatNumber(value) {
   if (value === null || value === undefined || isNaN(value)) return "-";
@@ -87,7 +88,9 @@ async function loadComponentsFromFirestore() {
   stocks.sort((a, b) => Number(a.rank || 999) - Number(b.rank || 999));
 
   componentStocks = stocks;
+
   renderStocks();
+  renderPortfolioChart();
 }
 
 async function getAssetAccounts() {
@@ -280,12 +283,54 @@ function renderStocks() {
   });
 
   updateSummary(stocks);
+  updateTimeText();
+}
 
-  const updateTime = document.getElementById("updateTime");
-  if (updateTime) {
-    const etfTime = etfStock?.updatedAt ? ` / ETF 갱신: ${etfStock.updatedAt}` : "";
-    updateTime.innerText = new Date().toLocaleString() + etfTime;
+function renderPortfolioChart() {
+  const canvas = document.getElementById("portfolioChart");
+
+  if (!canvas) return;
+
+  if (portfolioChart) {
+    portfolioChart.destroy();
+    portfolioChart = null;
   }
+
+  if (!componentStocks.length) return;
+
+  const labels = componentStocks.map(stock => stock.name);
+  const weights = componentStocks.map(stock => Number(stock.weight || 0) * 100);
+
+  portfolioChart = new Chart(canvas, {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "비중",
+          data: weights,
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "55%",
+      plugins: {
+        legend: {
+          position: "right"
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              return `${context.label}: ${context.raw.toFixed(2)}%`;
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 function updateSummary(stocks) {
@@ -303,6 +348,15 @@ function updateSummary(stocks) {
   const avgEl = document.getElementById("avgChange");
   avgEl.innerText = (avg * 100).toFixed(2) + "%";
   avgEl.className = getChangeClass(avg);
+}
+
+function updateTimeText() {
+  const updateTime = document.getElementById("updateTime");
+
+  if (updateTime) {
+    const etfTime = etfStock?.updatedAt ? ` / ETF 갱신: ${etfStock.updatedAt}` : "";
+    updateTime.innerText = new Date().toLocaleString() + etfTime;
+  }
 }
 
 window.loadStocks = async function () {

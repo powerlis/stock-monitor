@@ -1,47 +1,33 @@
-```html
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>KODEX ETF 모니터링</title>
+  <title>KODEX ETF Dashboard</title>
 
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-
   <div class="app">
 
-    <!-- HEADER -->
     <header>
-
       <div>
-
-        <p class="eyebrow">
-          KODEX ETF Dashboard
+        <p class="eyebrow">KODEX ETF Dashboard</p>
+        <h1>차이나휴머노이드로봇 구성종목 모니터링</h1>
+        <p class="desc">
+          ETF와 구성종목의 현재가, 수익률, 구성비를 확인할 수 있습니다.
         </p>
-
-        <h1>
-          차이나휴머노이드로봇 구성종목 모니터링
-        </h1>
-
       </div>
 
-      <!-- 상태 카드 -->
       <div class="status-card">
-
         <span class="dot"></span>
-
         <div>
           <strong>자동 갱신</strong>
           <p id="updateTime">대기 중</p>
         </div>
-
       </div>
-
     </header>
 
     <!-- 자산현황 -->
@@ -49,32 +35,18 @@
 
       <h2>자산현황</h2>
 
-      <!-- 탭 -->
       <div class="asset-tabs">
-
-        <button
-          id="profitTab"
-          class="asset-tab active"
-          onclick="showAssetTab('profit')"
-        >
+        <button id="profitTab" class="asset-tab active" onclick="showAssetTab('profit')">
           수익률
         </button>
 
-        <button
-          id="editTab"
-          class="asset-tab"
-          onclick="showAssetTab('edit')"
-        >
+        <button id="editTab" class="asset-tab" onclick="showAssetTab('edit')">
           매입단가수정
         </button>
-
       </div>
 
-      <!-- 수익률 탭 -->
       <div id="profitPanel" class="asset-panel table-wrap">
-
         <table class="asset-table">
-
           <thead>
             <tr>
               <th>계좌</th>
@@ -87,16 +59,11 @@
           </thead>
 
           <tbody id="assetProfitTable"></tbody>
-
         </table>
-
       </div>
 
-      <!-- 수정 탭 -->
       <div id="editPanel" class="asset-panel table-wrap hidden">
-
         <table class="asset-table">
-
           <thead>
             <tr>
               <th>계좌</th>
@@ -106,26 +73,20 @@
           </thead>
 
           <tbody id="assetEditTable"></tbody>
-
         </table>
 
-        <button
-          class="save-btn"
-          onclick="saveAssetAccounts()"
-        >
+        <button class="save-btn" onclick="saveAssetAccounts()">
           저장
         </button>
-
       </div>
 
     </section>
 
-    <!-- 설명 -->
     <p class="desc">
       종목 행을 클릭하면 상세페이지로 이동합니다.
     </p>
 
-    <!-- 요약 -->
+    <!-- 요약 카드 -->
     <section class="summary">
 
       <div class="card">
@@ -135,12 +96,12 @@
 
       <div class="card">
         <span>상승 종목</span>
-        <strong class="up" id="upCount">0</strong>
+        <strong id="upCount" class="up">0</strong>
       </div>
 
       <div class="card">
         <span>하락 종목</span>
-        <strong class="down" id="downCount">0</strong>
+        <strong id="downCount" class="down">0</strong>
       </div>
 
       <div class="card">
@@ -150,25 +111,16 @@
 
     </section>
 
-    <!-- ETF -->
+    <!-- ETF 현재가 -->
     <section class="etf-section">
 
       <div class="section-title">
-
-        <h2>
-          KODEX 차이나휴머노이드로봇 ETF
-        </h2>
-
-        <p>
-          ETF 행도 클릭하면 상세페이지로 이동합니다.
-        </p>
-
+        <h2>KODEX 차이나휴머노이드로봇 ETF</h2>
+        <p>ETF 행도 클릭하면 상세페이지로 이동합니다.</p>
       </div>
 
       <div class="table-wrap etf-table-wrap">
-
         <table>
-
           <thead>
             <tr>
               <th>구분</th>
@@ -187,16 +139,27 @@
           </thead>
 
           <tbody id="etfTable"></tbody>
-
         </table>
-
       </div>
 
     </section>
 
-    <!-- 검색 -->
-    <section class="toolbar">
+    <!-- 구성비 차트 -->
+    <section class="portfolio-chart-section">
 
+      <div class="section-title">
+        <h2>구성비 차트</h2>
+        <p>ETF 구성종목 10개의 비중을 시각화한 차트입니다.</p>
+      </div>
+
+      <div class="portfolio-chart-card">
+        <canvas id="portfolioChart"></canvas>
+      </div>
+
+    </section>
+
+    <!-- 검색/정렬 -->
+    <section class="toolbar">
       <input
         id="searchInput"
         type="text"
@@ -204,26 +167,17 @@
       />
 
       <select id="sortSelect">
-
-        <option value="weight">비중순</option>
-
+        <option value="rank">순위순</option>
         <option value="changeRate">등락률순</option>
-
         <option value="volume">거래량순</option>
-
       </select>
 
-      <button onclick="loadStocks()">
-        새로고침
-      </button>
-
+      <button onclick="loadStocks()">새로고침</button>
     </section>
 
-    <!-- 종목 테이블 -->
-    <main class="table-wrap">
-
+    <!-- 구성종목 테이블 -->
+    <section class="table-wrap">
       <table>
-
         <thead>
           <tr>
             <th>순위</th>
@@ -243,16 +197,13 @@
         </thead>
 
         <tbody id="stockTable"></tbody>
-
       </table>
-
-    </main>
+    </section>
 
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="data.js"></script>
   <script type="module" src="app.js"></script>
-
 </body>
 </html>
-```

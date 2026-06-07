@@ -317,6 +317,25 @@ function renderPortfolioChart() {
       responsive: true,
       maintainAspectRatio: false,
       cutout: "55%",
+
+      onHover: (event, elements) => {
+        const target = event.native?.target;
+        if (target) {
+          target.style.cursor = elements.length ? "pointer" : "default";
+        }
+      },
+
+      onClick: (event, elements) => {
+        if (!elements.length) return;
+
+        const index = elements[0].index;
+        const stock = componentStocks[index];
+
+        if (!stock) return;
+
+        goDetail(stock.code);
+      },
+
       plugins: {
         legend: {
           position: "right"

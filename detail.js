@@ -1,3 +1,4 @@
+```javascript
 import { db } from "./firebase-config.js";
 
 import {
@@ -58,8 +59,9 @@ async function loadStockDetail(code) {
   rateEl.className = cls;
 
   document.getElementById("volume").innerText = formatNumber(stock.volume);
+
   document.getElementById("detailTime").innerText =
-    stock.updatedAt ? `갱신: ${stock.updatedAt}` : new Date().toLocaleString();
+    new Date().toLocaleString();
 
   return stock;
 }
@@ -146,7 +148,9 @@ function renderHistoryTable(history) {
 }
 
 function renderPriceChart(history, mode) {
-  const canvas = document.getElementById("priceChart") || document.getElementById("closeChart");
+  const canvas =
+    document.getElementById("priceChart") ||
+    document.getElementById("closeChart");
 
   if (!canvas) return;
 
@@ -271,8 +275,10 @@ async function initDetailPage() {
 
   } catch (error) {
     console.error("상세페이지 로딩 오류:", error);
-    document.getElementById("detailName").innerText = "상세 데이터를 불러오지 못했습니다.";
+    document.getElementById("detailName").innerText =
+      "상세 데이터를 불러오지 못했습니다.";
   }
 }
 
 initDetailPage();
+```

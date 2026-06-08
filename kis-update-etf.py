@@ -1,21 +1,14 @@
-import os
+import re
 import requests
 from datetime import datetime
 
 import firebase_admin
 from firebase_admin import credentials, firestore
-from dotenv import load_dotenv
 
 
-load_dotenv()
-
-APP_KEY = os.getenv("KIS_APP_KEY")
-APP_SECRET = os.getenv("KIS_APP_SECRET")
-
-BASE_URL = "https://openapi.koreainvestment.com:9443"
 STOCK_CODE = "0048K0"
+STOCK_NAME = "KODEX 차이나휴머노이드로봇"
 FIREBASE_KEY_FILE = "firebase-service-key.json"
-
 ETF_NAVER_URL = "https://m.stock.naver.com/domestic/stock/0048K0/total"
 
 
@@ -23,80 +16,66 @@ def init_firestore():
     if not firebase_admin._apps:
         cred = credentials.Certificate(FIREBASE_KEY_FILE)
         firebase_admin.initialize_app(cred)
+
     return firestore.client()
 
 
-def get_access_token():
-    url = f"{BASE_URL}/oauth2/tokenP"
+def to_int(value):
+    if value is None:
+        return 0
+    return int(str(value).replace(",", "").strip() or 0)
 
+
+def find_number_after(label, html):
+    pattern = rf'"{label}".*?"value":"([\d,]+)"'
+    match = re.search(pattern, html)
+    if match:
+        return to_int(match.group(1))
+    return 0
+
+
+def get_etf_price_from_naver():
     headers = {
-        "content-type": "application/json"
+        "User-Agent": "Mozilla/5.0",
+        "Referer": ETF_NAVER_URL
     }
 
-    body = {
-        "grant_type": "client_credentials",
-        "appkey": APP_KEY,
-        "appsecret": APP_SECRET
-    }
-
-    response = requests.post(url, headers=headers, json=body)
-
-    print("토큰 요청 상태코드:", response.status_code)
-    print("토큰 응답:", response.text)
-
+    response = requests.get(ETF_NAVER_URL, headers=headers, timeout=10)
     response.raise_for_status()
 
-    data = response.json()
-    return data["access_token"]
+    html = response.text
 
+    current_match = re.search(r'"closePrice":"([\d,]+)"', html)
+    if not current_match:
+        current_match = re.search(r'"nowVal":"([\d,]+)"', html)
 
-def get_etf_price(access_token):
-    url = f"{BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price"
+    if not current_match:
+        raise Exception("네이버에서 현재가를 찾지 못했습니다.")
 
-    headers = {
-        "content-type": "application/json",
-        "authorization": f"Bearer {access_token}",
-        "appkey": APP_KEY,
-        "appsecret": APP_SECRET,
-        "tr_id": "FHKST01010100"
-    }
+    current = to_int(current_match.group(1))
 
-    params = {
-        "fid_cond_mrkt_div_code": "J",
-        "fid_input_iscd": STOCK_CODE
-    }
-
-    response = requests.get(url, headers=headers, params=params)
-
-    print("KIS 요청 URL:", response.url)
-    print("KIS 상태코드:", response.status_code)
-    print("KIS 응답 원문:", response.text)
-
-    if response.status_code != 200:
-        raise Exception(f"KIS API HTTP 오류: {response.status_code}")
-
-    data = response.json()
-
-    if data.get("rt_cd") != "0":
-        raise Exception(f"KIS API 응답 오류: {data}")
-
-    output = data.get("output", {})
+    previous = find_number_after("전일", html)
+    open_price = find_number_after("시가", html)
+    high = find_number_after("고가", html)
+    low = find_number_after("저가", html)
+    volume = find_number_after("거래량", html)
 
     now = datetime.now()
     now_text = now.strftime("%Y-%m-%d %H:%M:%S")
 
     return {
         "type": "ETF",
-        "name": "KODEX 차이나휴머노이드로봇",
+        "name": STOCK_NAME,
         "code": STOCK_CODE,
         "naverUrl": ETF_NAVER_URL,
-        "current": int(output.get("stck_prpr", 0) or 0),
-        "previous": int(output.get("stck_sdpr", 0) or 0),
-        "open": int(output.get("stck_oprc", 0) or 0),
-        "high": int(output.get("stck_hgpr", 0) or 0),
-        "low": int(output.get("stck_lwpr", 0) or 0),
-        "volume": int(output.get("acml_vol", 0) or 0),
+        "current": current,
+        "previous": previous,
+        "open": open_price,
+        "high": high,
+        "low": low,
+        "volume": volume,
         "market": "한국",
+        "source": "NAVER",
         "updatedAt": now_text,
         "timestamp": firestore.SERVER_TIMESTAMP
     }
@@ -121,6 +100,7 @@ def update_firestore(db, stock_data):
         "high": stock_data["high"],
         "low": stock_data["low"],
         "volume": stock_data["volume"],
+        "source": stock_data["source"],
         "updatedAt": stock_data["updatedAt"],
         "timestamp": firestore.SERVER_TIMESTAMP
     }
@@ -141,6 +121,7 @@ def update_firestore(db, stock_data):
         "high": stock_data["high"],
         "low": stock_data["low"],
         "volume": stock_data["volume"],
+        "source": stock_data["source"],
         "timestamp": firestore.SERVER_TIMESTAMP
     }
 
@@ -156,22 +137,14 @@ def update_firestore(db, stock_data):
 
 
 def main():
-    if not APP_KEY or not APP_SECRET:
-        raise Exception("KIS_APP_KEY 또는 KIS_APP_SECRET 없음")
-
     db = init_firestore()
     print("Firestore 연결 성공")
 
-    token = get_access_token()
-    print("KIS Access Token 발급 성공")
+    stock_data = get_etf_price_from_naver()
+    print("네이버 ETF 데이터 수집 성공")
+    print(stock_data)
 
-    try:
-        stock_data = get_etf_price(token)
-        update_firestore(db, stock_data)
-
-    except Exception as e:
-        print("ETF 갱신 실패:", e)
-        print("KIS에서 0048K0 조회 실패. Firestore 저장을 건너뜁니다.")
+    update_firestore(db, stock_data)
 
 
 if __name__ == "__main__":

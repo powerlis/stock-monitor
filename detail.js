@@ -1,4 +1,3 @@
-```javascript
 import { db } from "./firebase-config.js";
 
 import {
@@ -302,4 +301,3 @@ async function initDetailPage() {
 }
 
 initDetailPage();
-```

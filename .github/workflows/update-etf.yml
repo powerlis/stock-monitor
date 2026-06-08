@@ -1,8 +1,9 @@
+```yaml
 name: Update ETF Price
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "* * * * *"
   workflow_dispatch:
 
 jobs:
@@ -39,3 +40,4 @@ jobs:
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
         run: |
           python update-component-stocks.py
+```

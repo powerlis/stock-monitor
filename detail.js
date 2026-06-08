@@ -77,7 +77,7 @@ async function loadStockDetail(code) {
     document.getElementById("changeRate");
 
   rateEl.innerText =
-    `${rate > 0 ? "+" : ""}${(rate * 100).toFixed(2)}%`;
+  `${rate > 0 ? "+" : ""}${(rate * 100).toFixed(2)}%`;
 
   rateEl.className = cls;
 

@@ -1,0 +1,6 @@
+VS Code 수정
+→ firebase deploy
+→ 정상확인
+→ git push
+
+순서로 사용하시면 가장 안정적입니다.

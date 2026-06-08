@@ -23,7 +23,6 @@ def init_firestore():
     if not firebase_admin._apps:
         cred = credentials.Certificate(FIREBASE_KEY_FILE)
         firebase_admin.initialize_app(cred)
-
     return firestore.client()
 
 
@@ -41,12 +40,13 @@ def get_access_token():
     }
 
     response = requests.post(url, headers=headers, json=body)
+
+    print("토큰 요청 상태코드:", response.status_code)
+    print("토큰 응답:", response.text)
+
     response.raise_for_status()
 
     data = response.json()
-
-    print("토큰 발급 HTTP 상태코드:", response.status_code)
-
     return data["access_token"]
 
 
@@ -67,20 +67,20 @@ def get_etf_price(access_token):
     }
 
     response = requests.get(url, headers=headers, params=params)
-    response.raise_for_status()
+
+    print("KIS 요청 URL:", response.url)
+    print("KIS 상태코드:", response.status_code)
+    print("KIS 응답 원문:", response.text)
+
+    if response.status_code != 200:
+        raise Exception(f"KIS API HTTP 오류: {response.status_code}")
 
     data = response.json()
 
-    print("KIS 요청 URL:", response.url)
-    print("HTTP 상태코드:", response.status_code)
-    print("KIS 응답 원문:", data)
-
     if data.get("rt_cd") != "0":
-        raise Exception(f"KIS 오류: {data}")
+        raise Exception(f"KIS API 응답 오류: {data}")
 
     output = data.get("output", {})
-
-    print("KIS output:", output)
 
     now = datetime.now()
     now_text = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -152,7 +152,7 @@ def update_firestore(db, stock_data):
     print("Firestore 현재가 저장 완료")
     print("historyDaily 저장/갱신:", daily_id)
     print("historyIntraday 저장/갱신:", intraday_id)
-    print("Firestore 저장 데이터:", stock_data)
+    print("저장 데이터:", stock_data)
 
 
 def main():
@@ -170,13 +170,8 @@ def main():
         update_firestore(db, stock_data)
 
     except Exception as e:
-        print("오류 발생:", e)
-
-        token = get_access_token()
-        print("토큰 재발급 성공")
-
-        stock_data = get_etf_price(token)
-        update_firestore(db, stock_data)
+        print("ETF 갱신 실패:", e)
+        print("KIS에서 0048K0 조회 실패. Firestore 저장을 건너뜁니다.")
 
 
 if __name__ == "__main__":

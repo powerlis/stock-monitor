@@ -1,3 +1,4 @@
+```javascript
 import { db } from "./firebase-config.js";
 
 import {
@@ -499,13 +500,8 @@ function updateTimeText() {
     document.getElementById("updateTime");
 
   if (updateTime) {
-    const etfTime =
-      etfStock?.updatedAt
-        ? ` / ETF 갱신: ${etfStock.updatedAt}`
-        : "";
-
     updateTime.innerText =
-      new Date().toLocaleString() + etfTime;
+      new Date().toLocaleString();
   }
 }
 
@@ -529,3 +525,4 @@ setInterval(async () => {
   await loadEtfFromFirestore();
   await loadComponentsFromFirestore();
 }, 30000);
+```

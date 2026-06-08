@@ -44,6 +44,9 @@ def get_access_token():
     response.raise_for_status()
 
     data = response.json()
+
+    print("토큰 발급 HTTP 상태코드:", response.status_code)
+
     return data["access_token"]
 
 
@@ -68,10 +71,16 @@ def get_etf_price(access_token):
 
     data = response.json()
 
+    print("KIS 요청 URL:", response.url)
+    print("HTTP 상태코드:", response.status_code)
+    print("KIS 응답 원문:", data)
+
     if data.get("rt_cd") != "0":
         raise Exception(f"KIS 오류: {data}")
 
-    output = data["output"]
+    output = data.get("output", {})
+
+    print("KIS output:", output)
 
     now = datetime.now()
     now_text = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -81,12 +90,12 @@ def get_etf_price(access_token):
         "name": "KODEX 차이나휴머노이드로봇",
         "code": STOCK_CODE,
         "naverUrl": ETF_NAVER_URL,
-        "current": int(output.get("stck_prpr", 0)),
-        "previous": int(output.get("stck_sdpr", 0)),
-        "open": int(output.get("stck_oprc", 0)),
-        "high": int(output.get("stck_hgpr", 0)),
-        "low": int(output.get("stck_lwpr", 0)),
-        "volume": int(output.get("acml_vol", 0)),
+        "current": int(output.get("stck_prpr", 0) or 0),
+        "previous": int(output.get("stck_sdpr", 0) or 0),
+        "open": int(output.get("stck_oprc", 0) or 0),
+        "high": int(output.get("stck_hgpr", 0) or 0),
+        "low": int(output.get("stck_lwpr", 0) or 0),
+        "volume": int(output.get("acml_vol", 0) or 0),
         "market": "한국",
         "updatedAt": now_text,
         "timestamp": firestore.SERVER_TIMESTAMP
@@ -143,7 +152,7 @@ def update_firestore(db, stock_data):
     print("Firestore 현재가 저장 완료")
     print("historyDaily 저장/갱신:", daily_id)
     print("historyIntraday 저장/갱신:", intraday_id)
-    print(stock_data)
+    print("Firestore 저장 데이터:", stock_data)
 
 
 def main():

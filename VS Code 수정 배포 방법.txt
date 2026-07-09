@@ -8,7 +8,7 @@ VS Code 수정
 
 액션 수동 업데이트 
 cron-job.org 에서 설정함
-
+아이디: 엠팔 이메일
 https://cron-job.org/en/
 
 
@@ -16,3 +16,13 @@ https://cron-job.org/en/
 중국심천 SZS
 홍콩 HKS09880
 중국상해 SHS
+
+
+미션 하나 추가
+
+
+실제 웹페이지 전체 코드를 작성해 주세요.(스마트폰에서도 작동가능하도록 해야함)
+
+고급 버전으로 만들고 싶습니다.
+그리고 화면 디스플레이나 글꼴, 배경색 등은 다음 사이트를 참고해서 제작해 주세요
+ https://powerlis.github.io/bookday/

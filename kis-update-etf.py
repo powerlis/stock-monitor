@@ -1,6 +1,8 @@
-import requests
+import json
+import re
 from datetime import datetime
 
+import requests
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -9,7 +11,6 @@ STOCK_CODE = "0048K0"
 STOCK_NAME = "KODEX 차이나휴머노이드로봇"
 FIREBASE_KEY_FILE = "firebase-service-key.json"
 ETF_NAVER_URL = "https://m.stock.naver.com/domestic/stock/0048K0/total"
-NAVER_API_URL = f"https://api.stock.naver.com/stock/{STOCK_CODE}/basic"
 
 
 def init_firestore():
@@ -24,9 +25,13 @@ def to_int(value):
     if value is None:
         return 0
 
-    text = str(value).replace(",", "").replace("+", "").strip()
+    text = str(value)
+    text = text.replace(",", "")
+    text = text.replace("+", "")
+    text = text.replace("-", "")
+    text = text.strip()
 
-    if text in ["", "-", "N/A"]:
+    if text == "" or text.lower() in ["none", "null", "nan"]:
         return 0
 
     try:
@@ -35,39 +40,141 @@ def to_int(value):
         return 0
 
 
-def get_value(data, *keys):
-    for key in keys:
-        if key in data and data[key] not in [None, "", "-"]:
-            return data[key]
+def find_first_value(obj, keys):
+    if isinstance(obj, dict):
+        for key in keys:
+            if key in obj and obj[key] not in [None, "", "-"]:
+                return obj[key]
+
+        for value in obj.values():
+            found = find_first_value(value, keys)
+            if found not in [None, "", 0]:
+                return found
+
+    elif isinstance(obj, list):
+        for item in obj:
+            found = find_first_value(item, keys)
+            if found not in [None, "", 0]:
+                return found
+
+    return None
+
+
+def extract_next_data(html):
+    pattern = r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>'
+    match = re.search(pattern, html, re.DOTALL)
+
+    if not match:
+        return None
+
+    try:
+        return json.loads(match.group(1))
+    except Exception:
+        return None
+
+
+def fallback_find_number(label, html):
+    patterns = [
+        rf'"{label}".*?"value"\s*:\s*"([\d,]+)"',
+        rf'"{label}".*?"value"\s*:\s*([\d,]+)',
+        rf'{label}.*?([\d,]+)'
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, html, re.DOTALL)
+        if match:
+            return to_int(match.group(1))
+
     return 0
 
 
-def get_etf_price_from_naver_api():
+def get_etf_price_from_naver_mobile():
     headers = {
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Referer": ETF_NAVER_URL,
-        "Accept": "application/json"
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
-    response = requests.get(NAVER_API_URL, headers=headers, timeout=10)
+    response = requests.get(ETF_NAVER_URL, headers=headers, timeout=15)
     response.raise_for_status()
 
-    data = response.json()
+    html = response.text
+    next_data = extract_next_data(html)
 
-    print("네이버 API 응답:")
-    print(data)
+    current = 0
+    previous = 0
+    open_price = 0
+    high = 0
+    low = 0
+    volume = 0
 
-    current = to_int(get_value(data, "closePrice", "nowVal", "localTradedAt"))
-    previous = to_int(get_value(data, "compareToPreviousClosePrice", "previousClosePrice"))
+    if next_data:
+        current = to_int(find_first_value(next_data, [
+            "closePrice",
+            "nowVal",
+            "currentPrice",
+            "tradePrice"
+        ]))
 
-    # compareToPreviousClosePrice는 '등락금액'인 경우가 많아서 전일가 보정
-    if previous != 0 and current != 0 and abs(previous) < current * 0.3:
+        previous = to_int(find_first_value(next_data, [
+            "previousClosePrice",
+            "compareToPreviousClosePrice",
+            "prevClosePrice"
+        ]))
+
+        open_price = to_int(find_first_value(next_data, [
+            "openPrice",
+            "open",
+            "openingPrice"
+        ]))
+
+        high = to_int(find_first_value(next_data, [
+            "highPrice",
+            "high",
+            "highestPrice"
+        ]))
+
+        low = to_int(find_first_value(next_data, [
+            "lowPrice",
+            "low",
+            "lowestPrice"
+        ]))
+
+        volume = to_int(find_first_value(next_data, [
+            "accumulatedTradingVolume",
+            "tradingVolume",
+            "volume"
+        ]))
+
+    if current == 0:
+        current_match = re.search(r'"closePrice"\s*:\s*"([\d,]+)"', html)
+        if not current_match:
+            current_match = re.search(r'"nowVal"\s*:\s*"([\d,]+)"', html)
+
+        if current_match:
+            current = to_int(current_match.group(1))
+
+    if previous == 0:
+        previous = fallback_find_number("전일", html)
+
+    if open_price == 0:
+        open_price = fallback_find_number("시가", html)
+
+    if high == 0:
+        high = fallback_find_number("고가", html)
+
+    if low == 0:
+        low = fallback_find_number("저가", html)
+
+    if volume == 0:
+        volume = fallback_find_number("거래량", html)
+
+    if current == 0:
+        raise Exception("네이버 모바일 페이지에서 ETF 현재가를 찾지 못했습니다.")
+
+    if previous != 0 and abs(previous) < current * 0.3:
         previous = current - previous
-
-    open_price = to_int(get_value(data, "openPrice"))
-    high = to_int(get_value(data, "highPrice"))
-    low = to_int(get_value(data, "lowPrice"))
-    volume = to_int(get_value(data, "accumulatedTradingVolume", "accumulatedTradingValue"))
 
     now = datetime.now()
     now_text = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -84,13 +191,12 @@ def get_etf_price_from_naver_api():
         "low": low,
         "volume": volume,
         "market": "한국",
-        "source": "NAVER_API",
+        "source": "NAVER_MOBILE",
         "updatedAt": now_text,
         "timestamp": firestore.SERVER_TIMESTAMP
     }
 
-    if stock_data["current"] == 0:
-        raise Exception("네이버 API에서 현재가를 찾지 못했습니다.")
+    print("수집 데이터:", stock_data)
 
     return stock_data
 
@@ -154,9 +260,8 @@ def main():
     db = init_firestore()
     print("Firestore 연결 성공")
 
-    stock_data = get_etf_price_from_naver_api()
-    print("네이버 API ETF 데이터 수집 성공")
-    print(stock_data)
+    stock_data = get_etf_price_from_naver_mobile()
+    print("네이버 모바일 ETF 데이터 수집 성공")
 
     update_firestore(db, stock_data)
 

@@ -4,3 +4,15 @@ VS Code 수정
 → git push
 
 순서로 사용하시면 가장 안정적입니다.
+
+
+액션 수동 업데이트 
+cron-job.org 에서 설정함
+
+https://cron-job.org/en/
+
+
+코드 자리수 6개 이상이고, 알파벳끝에 S를 붙임
+중국심천 SZS
+홍콩 HKS09880
+중국상해 SHS

@@ -1,4 +1,3 @@
-import re
 import requests
 from datetime import datetime
 
@@ -10,6 +9,7 @@ STOCK_CODE = "0048K0"
 STOCK_NAME = "KODEX 차이나휴머노이드로봇"
 FIREBASE_KEY_FILE = "firebase-service-key.json"
 ETF_NAVER_URL = "https://m.stock.naver.com/domestic/stock/0048K0/total"
+NAVER_API_URL = f"https://api.stock.naver.com/stock/{STOCK_CODE}/basic"
 
 
 def init_firestore():
@@ -23,47 +23,56 @@ def init_firestore():
 def to_int(value):
     if value is None:
         return 0
-    return int(str(value).replace(",", "").strip() or 0)
+
+    text = str(value).replace(",", "").replace("+", "").strip()
+
+    if text in ["", "-", "N/A"]:
+        return 0
+
+    try:
+        return int(float(text))
+    except Exception:
+        return 0
 
 
-def find_number_after(label, html):
-    pattern = rf'"{label}".*?"value":"([\d,]+)"'
-    match = re.search(pattern, html)
-    if match:
-        return to_int(match.group(1))
+def get_value(data, *keys):
+    for key in keys:
+        if key in data and data[key] not in [None, "", "-"]:
+            return data[key]
     return 0
 
 
-def get_etf_price_from_naver():
+def get_etf_price_from_naver_api():
     headers = {
         "User-Agent": "Mozilla/5.0",
-        "Referer": ETF_NAVER_URL
+        "Referer": ETF_NAVER_URL,
+        "Accept": "application/json"
     }
 
-    response = requests.get(ETF_NAVER_URL, headers=headers, timeout=10)
+    response = requests.get(NAVER_API_URL, headers=headers, timeout=10)
     response.raise_for_status()
 
-    html = response.text
+    data = response.json()
 
-    current_match = re.search(r'"closePrice":"([\d,]+)"', html)
-    if not current_match:
-        current_match = re.search(r'"nowVal":"([\d,]+)"', html)
+    print("네이버 API 응답:")
+    print(data)
 
-    if not current_match:
-        raise Exception("네이버에서 현재가를 찾지 못했습니다.")
+    current = to_int(get_value(data, "closePrice", "nowVal", "localTradedAt"))
+    previous = to_int(get_value(data, "compareToPreviousClosePrice", "previousClosePrice"))
 
-    current = to_int(current_match.group(1))
+    # compareToPreviousClosePrice는 '등락금액'인 경우가 많아서 전일가 보정
+    if previous != 0 and current != 0 and abs(previous) < current * 0.3:
+        previous = current - previous
 
-    previous = find_number_after("전일", html)
-    open_price = find_number_after("시가", html)
-    high = find_number_after("고가", html)
-    low = find_number_after("저가", html)
-    volume = find_number_after("거래량", html)
+    open_price = to_int(get_value(data, "openPrice"))
+    high = to_int(get_value(data, "highPrice"))
+    low = to_int(get_value(data, "lowPrice"))
+    volume = to_int(get_value(data, "accumulatedTradingVolume", "accumulatedTradingValue"))
 
     now = datetime.now()
     now_text = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    return {
+    stock_data = {
         "type": "ETF",
         "name": STOCK_NAME,
         "code": STOCK_CODE,
@@ -75,10 +84,15 @@ def get_etf_price_from_naver():
         "low": low,
         "volume": volume,
         "market": "한국",
-        "source": "NAVER",
+        "source": "NAVER_API",
         "updatedAt": now_text,
         "timestamp": firestore.SERVER_TIMESTAMP
     }
+
+    if stock_data["current"] == 0:
+        raise Exception("네이버 API에서 현재가를 찾지 못했습니다.")
+
+    return stock_data
 
 
 def update_firestore(db, stock_data):
@@ -140,8 +154,8 @@ def main():
     db = init_firestore()
     print("Firestore 연결 성공")
 
-    stock_data = get_etf_price_from_naver()
-    print("네이버 ETF 데이터 수집 성공")
+    stock_data = get_etf_price_from_naver_api()
+    print("네이버 API ETF 데이터 수집 성공")
     print(stock_data)
 
     update_firestore(db, stock_data)

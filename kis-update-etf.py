@@ -11,7 +11,6 @@ from firebase_admin import credentials, firestore
 
 STOCK_CODE = "0048K0"
 STOCK_NAME = "KODEX 차이나휴머노이드로봇"
-
 FIREBASE_KEY_FILE = "firebase-service-key.json"
 
 ETF_NAVER_URL = (
@@ -33,11 +32,7 @@ def now_kst():
     return datetime.now(KST)
 
 
-def clean_number(value: Any) -> float | None:
-    """
-    쉼표, %, 원 등의 문자를 제거하고 숫자로 변환합니다.
-    부호는 유지합니다.
-    """
+def parse_number(value: Any) -> float | None:
     if value is None:
         return None
 
@@ -46,20 +41,23 @@ def clean_number(value: Any) -> float | None:
 
     text = str(value).strip()
 
-    if text == "" or text.lower() in {
+    if text.lower() in {
+        "",
+        "-",
         "none",
         "null",
         "nan",
-        "n/a",
-        "-"
+        "n/a"
     }:
         return None
 
-    text = text.replace(",", "")
-    text = text.replace("원", "")
-    text = text.replace("%", "")
-    text = text.replace("주", "")
-    text = text.strip()
+    text = (
+        text.replace(",", "")
+        .replace("원", "")
+        .replace("%", "")
+        .replace("주", "")
+        .strip()
+    )
 
     match = re.search(r"[-+]?\d+(?:\.\d+)?", text)
 
@@ -73,7 +71,7 @@ def clean_number(value: Any) -> float | None:
 
 
 def to_int(value: Any) -> int:
-    number = clean_number(value)
+    number = parse_number(value)
 
     if number is None:
         return 0
@@ -82,39 +80,23 @@ def to_int(value: Any) -> int:
 
 
 def extract_next_data(html: str) -> dict | None:
-    """
-    네이버 모바일 페이지에 포함된 __NEXT_DATA__ JSON을 추출합니다.
-    """
-    patterns = [
-        (
-            r'<script[^>]+id=["\']__NEXT_DATA__["\']'
-            r'[^>]*>(.*?)</script>'
-        ),
-        (
-            r'<script[^>]+type=["\']application/json["\']'
-            r'[^>]+id=["\']__NEXT_DATA__["\']'
-            r'[^>]*>(.*?)</script>'
-        )
-    ]
+    pattern = (
+        r'<script[^>]+id=["\']__NEXT_DATA__["\']'
+        r'[^>]*>(.*?)</script>'
+    )
 
-    for pattern in patterns:
-        match = re.search(pattern, html, re.DOTALL)
+    match = re.search(pattern, html, re.DOTALL)
 
-        if not match:
-            continue
+    if not match:
+        return None
 
-        try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            continue
-
-    return None
+    try:
+        return json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return None
 
 
 def walk_dicts(value: Any):
-    """
-    중첩 JSON 안의 모든 dict 객체를 순회합니다.
-    """
     if isinstance(value, dict):
         yield value
 
@@ -126,10 +108,28 @@ def walk_dicts(value: Any):
             yield from walk_dicts(child)
 
 
+def direct_value(data: dict, keys: list[str]):
+    """
+    현재 객체의 직접 필드만 검사합니다.
+    하위 객체를 재귀 탐색하지 않습니다.
+    """
+    for key in keys:
+        if key not in data:
+            continue
+
+        value = data.get(key)
+
+        if value not in [None, "", "-"]:
+            return value
+
+    return None
+
+
+def direct_int(data: dict, keys: list[str]) -> int:
+    return to_int(direct_value(data, keys))
+
+
 def contains_stock_code(data: dict) -> bool:
-    """
-    해당 객체가 0048K0 종목과 관련된 객체인지 확인합니다.
-    """
     code_keys = [
         "stockCode",
         "itemCode",
@@ -144,217 +144,82 @@ def contains_stock_code(data: dict) -> bool:
         if STOCK_CODE in value:
             return True
 
-    serialized = json.dumps(
-        data,
-        ensure_ascii=False,
-        separators=(",", ":")
-    )
-
-    return STOCK_CODE in serialized
+    return False
 
 
-def score_quote_object(data: dict) -> int:
-    """
-    시세 객체일 가능성을 점수로 평가합니다.
-    여러 화면 데이터 중 엉뚱한 값을 선택하지 않도록 합니다.
-    """
-    score = 0
-
-    primary_keys = [
-        "closePrice",
-        "currentPrice",
-        "nowVal",
-        "tradePrice"
-    ]
-
-    market_keys = [
-        "openPrice",
-        "highPrice",
-        "lowPrice"
-    ]
-
-    previous_keys = [
-        "previousClosePrice",
-        "prevClosePrice",
-        "compareToPreviousClosePrice"
-    ]
-
-    volume_keys = [
-        "accumulatedTradingVolume",
-        "tradingVolume",
-        "volume"
-    ]
-
-    if any(key in data for key in primary_keys):
-        score += 10
-
-    score += sum(
-        3 for key in market_keys
-        if key in data
-    )
-
-    score += sum(
-        3 for key in previous_keys
-        if key in data
-    )
-
-    score += sum(
-        2 for key in volume_keys
-        if key in data
-    )
-
-    if contains_stock_code(data):
-        score += 15
-
-    name_text = " ".join(
-        str(data.get(key, ""))
-        for key in [
-            "stockName",
-            "itemName",
-            "name",
-            "localName"
-        ]
-    )
-
-    if (
-        "차이나휴머노이드" in name_text
-        or "KODEX" in name_text
-    ):
-        score += 10
-
-    return score
-
-
-def find_quote_object(next_data: dict) -> dict:
-    """
-    현재가, 시가, 고가, 저가 등이 함께 들어 있는
-    가장 신뢰할 수 있는 단일 객체를 선택합니다.
-    """
-    candidates = []
-
-    for data in walk_dicts(next_data):
-        score = score_quote_object(data)
-
-        if score > 0:
-            candidates.append((score, data))
-
-    if not candidates:
-        raise RuntimeError(
-            "네이버 페이지에서 시세 객체를 찾지 못했습니다."
-        )
-
-    candidates.sort(
-        key=lambda item: item[0],
-        reverse=True
-    )
-
-    best_score, best_data = candidates[0]
-
-    print("선택된 시세 객체 점수:", best_score)
-    print(
-        "선택된 시세 객체:",
-        json.dumps(
-            best_data,
-            ensure_ascii=False,
-            indent=2
-        )[:5000]
-    )
-
-    if best_score < 20:
-        raise RuntimeError(
-            "시세 객체의 신뢰 점수가 낮아 저장을 중단합니다."
-        )
-
-    return best_data
-
-
-def first_number(data: dict, keys: list[str]) -> int:
-    for key in keys:
-        if key not in data:
-            continue
-
-        value = to_int(data.get(key))
-
-        if value != 0:
-            return value
-
-    return 0
-
-
-def determine_change_amount(data: dict) -> int:
-    """
-    전일 대비 금액의 부호를 정확히 판단합니다.
-    """
-    raw_change = None
-
-    for key in [
-        "compareToPreviousClosePrice",
-        "changePrice",
-        "priceChange"
-    ]:
-        if key in data:
-            raw_change = data.get(key)
-            break
-
-    number = clean_number(raw_change)
-
-    if number is None:
-        return 0
-
-    raw_text = str(raw_change).strip()
-
-    # 값 자체에 음수 부호가 있으면 그대로 사용
-    if raw_text.startswith("-"):
-        return -abs(int(round(number)))
-
-    direction_values = []
+def get_direction_text(data: dict) -> str:
+    values = []
 
     for key in [
         "compareToPreviousPrice",
         "compareToPreviousClosePriceType",
-        "fluctuationsRatioType",
-        "changeType"
+        "changeType",
+        "fluctuationsRatioType"
     ]:
         value = data.get(key)
 
         if isinstance(value, dict):
-            direction_values.extend(
-                str(item)
-                for item in value.values()
-            )
+            values.extend(str(item) for item in value.values())
+
         elif value is not None:
-            direction_values.append(str(value))
+            values.append(str(value))
 
-    direction_text = " ".join(direction_values).lower()
+    return " ".join(values).lower()
 
-    down_words = [
-        "하락",
-        "내림",
-        "fall",
-        "down",
-        "lower",
-        "5"
-    ]
 
-    flat_words = [
-        "보합",
-        "unchanged",
-        "flat",
-        "3"
-    ]
+def signed_change_amount(data: dict) -> int:
+    raw_value = direct_value(
+        data,
+        [
+            "compareToPreviousClosePrice",
+            "changePrice",
+            "priceChange"
+        ]
+    )
 
-    if any(word in direction_text for word in flat_words):
+    number = parse_number(raw_value)
+
+    if number is None:
         return 0
 
-    if any(word in direction_text for word in down_words):
+    raw_text = str(raw_value).strip()
+
+    # 값 자체에 음수 기호가 있으면 그대로 하락 처리
+    if raw_text.startswith("-") or number < 0:
         return -abs(int(round(number)))
+
+    direction = get_direction_text(data)
+
+    # 네이버 등락 구분 코드:
+    # 2 상승, 3 보합, 5 하락
+    if (
+        "하락" in direction
+        or "내림" in direction
+        or "down" in direction
+        or "fall" in direction
+        or direction.strip() == "5"
+        or '"code": "5"' in direction
+    ):
+        return -abs(int(round(number)))
+
+    if (
+        "보합" in direction
+        or "unchanged" in direction
+        or "flat" in direction
+        or direction.strip() == "3"
+        or '"code": "3"' in direction
+    ):
+        return 0
 
     return abs(int(round(number)))
 
 
-def build_stock_data(quote: dict) -> dict:
-    current = first_number(
-        quote,
+def build_candidate(data: dict) -> dict | None:
+    """
+    한 객체 안에 시세 관련 필드가 직접 같이 있는 경우만 후보로 인정합니다.
+    """
+    current = direct_int(
+        data,
         [
             "closePrice",
             "currentPrice",
@@ -363,35 +228,32 @@ def build_stock_data(quote: dict) -> dict:
         ]
     )
 
-    open_price = first_number(
-        quote,
+    open_price = direct_int(
+        data,
         [
             "openPrice",
-            "openingPrice",
-            "open"
+            "openingPrice"
         ]
     )
 
-    high = first_number(
-        quote,
+    high = direct_int(
+        data,
         [
             "highPrice",
-            "highestPrice",
-            "high"
+            "highestPrice"
         ]
     )
 
-    low = first_number(
-        quote,
+    low = direct_int(
+        data,
         [
             "lowPrice",
-            "lowestPrice",
-            "low"
+            "lowestPrice"
         ]
     )
 
-    volume = first_number(
-        quote,
+    volume = direct_int(
+        data,
         [
             "accumulatedTradingVolume",
             "tradingVolume",
@@ -399,123 +261,116 @@ def build_stock_data(quote: dict) -> dict:
         ]
     )
 
-    # 전일 종가 필드만 우선 사용합니다.
-    previous = first_number(
-        quote,
-        [
-            "previousClosePrice",
-            "prevClosePrice"
-        ]
-    )
+    change_amount = signed_change_amount(data)
 
-    change_amount = determine_change_amount(quote)
+    # 필수 가격이 모두 같은 객체에 있어야 함
+    if not all([
+        current > 0,
+        open_price > 0,
+        high > 0,
+        low > 0
+    ]):
+        return None
 
-    # 전일 종가 필드가 없을 때만 현재가와 등락금액으로 계산
-    if previous == 0 and current > 0:
-        previous = current - change_amount
+    # 가격 관계 검증
+    if high < low:
+        return None
 
-    validate_quote(
-        current=current,
-        previous=previous,
-        open_price=open_price,
-        high=high,
-        low=low,
-        volume=volume
-    )
+    if not (low <= current <= high):
+        return None
 
-    now = now_kst()
-    now_text = now.strftime("%Y-%m-%d %H:%M:%S")
+    if not (low <= open_price <= high):
+        return None
 
-    change_rate = (
-        ((current - previous) / previous) * 100
-        if previous > 0
-        else 0
-    )
+    # 전일 대비 금액이 없으면 후보로 사용하지 않음
+    if change_amount == 0:
+        direction = get_direction_text(data)
+
+        if not (
+            "보합" in direction
+            or "unchanged" in direction
+            or direction.strip() == "3"
+        ):
+            return None
+
+    previous = current - change_amount
+
+    if previous <= 0:
+        return None
+
+    # 비정상적인 전일가 차단
+    if abs(current - previous) / previous > 0.30:
+        return None
+
+    score = 0
+
+    if contains_stock_code(data):
+        score += 100
+
+    if "closePrice" in data:
+        score += 20
+
+    if "compareToPreviousClosePrice" in data:
+        score += 20
+
+    if "openPrice" in data:
+        score += 10
+
+    if "highPrice" in data:
+        score += 10
+
+    if "lowPrice" in data:
+        score += 10
+
+    if "accumulatedTradingVolume" in data:
+        score += 10
 
     return {
-        "type": "ETF",
-        "name": STOCK_NAME,
-        "code": STOCK_CODE,
-        "naverUrl": ETF_NAVER_URL,
+        "score": score,
+        "raw": data,
         "current": current,
         "previous": previous,
-        "change": current - previous,
-        "changeRate": round(change_rate, 4),
+        "change": change_amount,
         "open": open_price,
         "high": high,
         "low": low,
-        "volume": volume,
-        "market": "한국",
-        "source": "NAVER_MOBILE_NEXT_DATA",
-        "updatedAt": now_text,
-        "timestamp": firestore.SERVER_TIMESTAMP
+        "volume": volume
     }
 
 
-def validate_quote(
-    current: int,
-    previous: int,
-    open_price: int,
-    high: int,
-    low: int,
-    volume: int
-):
-    """
-    엉뚱한 숫자가 Firestore에 덮어써지는 것을 방지합니다.
-    """
-    errors = []
+def find_quote_candidate(next_data: dict) -> dict:
+    candidates = []
 
-    if current <= 0:
-        errors.append("현재가가 0 이하입니다.")
+    for data in walk_dicts(next_data):
+        candidate = build_candidate(data)
 
-    if previous <= 0:
-        errors.append("전일가가 0 이하입니다.")
+        if candidate:
+            candidates.append(candidate)
 
-    if open_price <= 0:
-        errors.append("시가가 0 이하입니다.")
-
-    if high <= 0:
-        errors.append("고가가 0 이하입니다.")
-
-    if low <= 0:
-        errors.append("저가가 0 이하입니다.")
-
-    if high < low:
-        errors.append("고가가 저가보다 낮습니다.")
-
-    if high > 0 and current > high:
-        errors.append("현재가가 고가보다 높습니다.")
-
-    if low > 0 and current < low:
-        errors.append("현재가가 저가보다 낮습니다.")
-
-    if high > 0 and open_price > high:
-        errors.append("시가가 고가보다 높습니다.")
-
-    if low > 0 and open_price < low:
-        errors.append("시가가 저가보다 낮습니다.")
-
-    if current > 0 and previous > 0:
-        variation = abs(current - previous) / previous
-
-        if variation > 0.30:
-            errors.append(
-                "현재가와 전일가의 차이가 30%를 초과합니다."
-            )
-
-    if volume < 0:
-        errors.append("거래량이 음수입니다.")
-
-    if errors:
-        message = "\n".join(
-            f"- {error}"
-            for error in errors
-        )
-
+    if not candidates:
         raise RuntimeError(
-            "수집 데이터 검증 실패. Firestore에 저장하지 않습니다.\n"
-            + message
+            "현재가·시가·고가·저가·전일 대비 금액이 "
+            "같이 들어 있는 시세 객체를 찾지 못했습니다."
         )
+
+    candidates.sort(
+        key=lambda item: item["score"],
+        reverse=True
+    )
+
+    best = candidates[0]
+
+    print("선택된 후보 점수:", best["score"])
+    print(
+        "선택된 원본 객체:",
+        json.dumps(
+            best["raw"],
+            ensure_ascii=False,
+            indent=2
+        )[:5000]
+    )
+
+    return best
 
 
 def get_etf_price_from_naver_mobile() -> dict:
@@ -528,8 +383,7 @@ def get_etf_price_from_naver_mobile() -> dict:
         "Referer": ETF_NAVER_URL,
         "Accept": (
             "text/html,application/xhtml+xml,"
-            "application/xml;q=0.9,image/avif,"
-            "image/webp,*/*;q=0.8"
+            "application/xml;q=0.9,*/*;q=0.8"
         ),
         "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.7",
         "Cache-Control": "no-cache",
@@ -544,18 +398,52 @@ def get_etf_price_from_naver_mobile() -> dict:
 
     response.raise_for_status()
 
-    html = response.text
-
-    next_data = extract_next_data(html)
+    next_data = extract_next_data(response.text)
 
     if next_data is None:
         raise RuntimeError(
-            "네이버 모바일 페이지에서 __NEXT_DATA__를 "
-            "찾지 못했습니다."
+            "네이버 모바일 페이지에서 __NEXT_DATA__를 찾지 못했습니다."
         )
 
-    quote = find_quote_object(next_data)
-    stock_data = build_stock_data(quote)
+    quote = find_quote_candidate(next_data)
+
+    current = quote["current"]
+    previous = quote["previous"]
+    change = quote["change"]
+
+    # 핵심 교차검증
+    if current - previous != change:
+        raise RuntimeError(
+            "현재가, 전일가, 전일 대비 금액의 계산이 일치하지 않습니다."
+        )
+
+    now = now_kst()
+    now_text = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    change_rate = (
+        ((current - previous) / previous) * 100
+        if previous > 0
+        else 0
+    )
+
+    stock_data = {
+        "type": "ETF",
+        "name": STOCK_NAME,
+        "code": STOCK_CODE,
+        "naverUrl": ETF_NAVER_URL,
+        "current": current,
+        "previous": previous,
+        "change": change,
+        "changeRate": round(change_rate, 4),
+        "open": quote["open"],
+        "high": quote["high"],
+        "low": quote["low"],
+        "volume": quote["volume"],
+        "market": "한국",
+        "source": "NAVER_MOBILE_EXACT_OBJECT",
+        "updatedAt": now_text,
+        "timestamp": firestore.SERVER_TIMESTAMP
+    }
 
     print(
         "최종 수집 데이터:",
@@ -637,18 +525,12 @@ def update_firestore(db, stock_data: dict):
     )
 
     print("Firestore 저장 완료")
-    print("현재 문서:", f"stocks/{STOCK_CODE}")
-    print(
-        "일별 문서:",
-        f"stocks/{STOCK_CODE}/historyDaily/{daily_id}"
-    )
-    print(
-        "당일 문서:",
-        (
-            f"stocks/{STOCK_CODE}/"
-            f"historyIntraday/{intraday_id}"
-        )
-    )
+    print("현재가:", stock_data["current"])
+    print("전일가:", stock_data["previous"])
+    print("등락:", stock_data["change"])
+    print("시가:", stock_data["open"])
+    print("고가:", stock_data["high"])
+    print("저가:", stock_data["low"])
 
 
 def main():
@@ -658,7 +540,14 @@ def main():
     print("Firestore 연결 성공")
 
     stock_data = get_etf_price_from_naver_mobile()
-    print("네이버 모바일 ETF 데이터 수집 성공")
+
+    # 저장 전에 터미널에서 반드시 확인
+    print(
+        "검증 결과:",
+        f"현재가 {stock_data['current']} / "
+        f"전일가 {stock_data['previous']} / "
+        f"등락 {stock_data['change']}"
+    )
 
     update_firestore(db, stock_data)
 

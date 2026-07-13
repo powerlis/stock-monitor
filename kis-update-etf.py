@@ -1,16 +1,18 @@
+import html as html_module
 import json
 import re
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import requests
 import firebase_admin
+import requests
 from firebase_admin import credentials, firestore
 
 
 STOCK_CODE = "0048K0"
 STOCK_NAME = "KODEX 차이나휴머노이드로봇"
+
 FIREBASE_KEY_FILE = "firebase-service-key.json"
 
 ETF_NAVER_URL = (
@@ -19,6 +21,10 @@ ETF_NAVER_URL = (
 
 KST = ZoneInfo("Asia/Seoul")
 
+
+# --------------------------------------------------
+# Firebase
+# --------------------------------------------------
 
 def init_firestore():
     if not firebase_admin._apps:
@@ -31,6 +37,10 @@ def init_firestore():
 def now_kst():
     return datetime.now(KST)
 
+
+# --------------------------------------------------
+# 숫자 변환
+# --------------------------------------------------
 
 def parse_number(value: Any) -> float | None:
     if value is None:
@@ -50,6 +60,8 @@ def parse_number(value: Any) -> float | None:
         "n/a"
     }:
         return None
+
+    text = html_module.unescape(text)
 
     text = (
         text.replace(",", "")
@@ -79,24 +91,47 @@ def to_int(value: Any) -> int:
     return int(round(number))
 
 
-def extract_next_data(html: str) -> dict | None:
+# --------------------------------------------------
+# HTML·JSON 추출
+# --------------------------------------------------
+
+def extract_next_data_text(page_html: str) -> str | None:
+    """
+    HTML에 포함된 __NEXT_DATA__ JSON 원문을 추출합니다.
+    """
     pattern = (
         r'<script[^>]+id=["\']__NEXT_DATA__["\']'
         r'[^>]*>(.*?)</script>'
     )
 
-    match = re.search(pattern, html, re.DOTALL)
+    match = re.search(
+        pattern,
+        page_html,
+        flags=re.DOTALL | re.IGNORECASE
+    )
 
     if not match:
         return None
 
+    return html_module.unescape(match.group(1))
+
+
+def extract_next_data(page_html: str) -> dict | None:
+    json_text = extract_next_data_text(page_html)
+
+    if not json_text:
+        return None
+
     try:
-        return json.loads(match.group(1))
+        return json.loads(json_text)
     except json.JSONDecodeError:
         return None
 
 
 def walk_dicts(value: Any):
+    """
+    중첩 JSON의 모든 dict 객체를 순회합니다.
+    """
     if isinstance(value, dict):
         yield value
 
@@ -108,270 +143,225 @@ def walk_dicts(value: Any):
             yield from walk_dicts(child)
 
 
-def direct_value(data: dict, keys: list[str]):
+# --------------------------------------------------
+# 정확한 필드 검색
+# --------------------------------------------------
+
+def exact_key_values(data: Any, key_name: str) -> list[Any]:
     """
-    현재 객체의 직접 필드만 검사합니다.
-    하위 객체를 재귀 탐색하지 않습니다.
+    JSON 전체에서 정확히 일치하는 키의 값을 모두 찾습니다.
+
+    예:
+    previousClosePrice만 찾음
+    compareToPreviousClosePrice는 찾지 않음
     """
-    for key in keys:
-        if key not in data:
-            continue
+    results = []
 
-        value = data.get(key)
+    for item in walk_dicts(data):
+        if key_name in item:
+            value = item.get(key_name)
 
-        if value not in [None, "", "-"]:
-            return value
+            if value not in [None, "", "-"]:
+                results.append(value)
 
-    return None
-
-
-def direct_int(data: dict, keys: list[str]) -> int:
-    return to_int(direct_value(data, keys))
+    return results
 
 
-def contains_stock_code(data: dict) -> bool:
-    code_keys = [
-        "stockCode",
-        "itemCode",
-        "code",
-        "symbolCode",
-        "reutersCode"
+def exact_html_values(page_html: str, key_name: str) -> list[str]:
+    """
+    JSON 파싱이 불가능한 경우를 대비하여 HTML 원문에서
+    정확한 키 이름으로 값들을 찾습니다.
+    """
+    escaped_key = re.escape(key_name)
+
+    patterns = [
+        rf'"{escaped_key}"\s*:\s*"([^"]+)"',
+        rf"'{escaped_key}'\s*:\s*'([^']+)'",
+        rf'"{escaped_key}"\s*:\s*(-?\d+(?:\.\d+)?)',
+        rf"'{escaped_key}'\s*:\s*(-?\d+(?:\.\d+)?)"
     ]
 
-    for key in code_keys:
-        value = str(data.get(key, "")).upper()
+    results = []
 
-        if STOCK_CODE in value:
-            return True
-
-    return False
-
-
-def get_direction_text(data: dict) -> str:
-    values = []
-
-    for key in [
-        "compareToPreviousPrice",
-        "compareToPreviousClosePriceType",
-        "changeType",
-        "fluctuationsRatioType"
-    ]:
-        value = data.get(key)
-
-        if isinstance(value, dict):
-            values.extend(str(item) for item in value.values())
-
-        elif value is not None:
-            values.append(str(value))
-
-    return " ".join(values).lower()
-
-
-def signed_change_amount(data: dict) -> int:
-    raw_value = direct_value(
-        data,
-        [
-            "compareToPreviousClosePrice",
-            "changePrice",
-            "priceChange"
-        ]
-    )
-
-    number = parse_number(raw_value)
-
-    if number is None:
-        return 0
-
-    raw_text = str(raw_value).strip()
-
-    # 값 자체에 음수 기호가 있으면 그대로 하락 처리
-    if raw_text.startswith("-") or number < 0:
-        return -abs(int(round(number)))
-
-    direction = get_direction_text(data)
-
-    # 네이버 등락 구분 코드:
-    # 2 상승, 3 보합, 5 하락
-    if (
-        "하락" in direction
-        or "내림" in direction
-        or "down" in direction
-        or "fall" in direction
-        or direction.strip() == "5"
-        or '"code": "5"' in direction
-    ):
-        return -abs(int(round(number)))
-
-    if (
-        "보합" in direction
-        or "unchanged" in direction
-        or "flat" in direction
-        or direction.strip() == "3"
-        or '"code": "3"' in direction
-    ):
-        return 0
-
-    return abs(int(round(number)))
-
-
-def build_candidate(data: dict) -> dict | None:
-    """
-    한 객체 안에 시세 관련 필드가 직접 같이 있는 경우만 후보로 인정합니다.
-    """
-    current = direct_int(
-        data,
-        [
-            "closePrice",
-            "currentPrice",
-            "nowVal",
-            "tradePrice"
-        ]
-    )
-
-    open_price = direct_int(
-        data,
-        [
-            "openPrice",
-            "openingPrice"
-        ]
-    )
-
-    high = direct_int(
-        data,
-        [
-            "highPrice",
-            "highestPrice"
-        ]
-    )
-
-    low = direct_int(
-        data,
-        [
-            "lowPrice",
-            "lowestPrice"
-        ]
-    )
-
-    volume = direct_int(
-        data,
-        [
-            "accumulatedTradingVolume",
-            "tradingVolume",
-            "volume"
-        ]
-    )
-
-    change_amount = signed_change_amount(data)
-
-    # 필수 가격이 모두 같은 객체에 있어야 함
-    if not all([
-        current > 0,
-        open_price > 0,
-        high > 0,
-        low > 0
-    ]):
-        return None
-
-    # 가격 관계 검증
-    if high < low:
-        return None
-
-    if not (low <= current <= high):
-        return None
-
-    if not (low <= open_price <= high):
-        return None
-
-    # 전일 대비 금액이 없으면 후보로 사용하지 않음
-    if change_amount == 0:
-        direction = get_direction_text(data)
-
-        if not (
-            "보합" in direction
-            or "unchanged" in direction
-            or direction.strip() == "3"
-        ):
-            return None
-
-    previous = current - change_amount
-
-    if previous <= 0:
-        return None
-
-    # 비정상적인 전일가 차단
-    if abs(current - previous) / previous > 0.30:
-        return None
-
-    score = 0
-
-    if contains_stock_code(data):
-        score += 100
-
-    if "closePrice" in data:
-        score += 20
-
-    if "compareToPreviousClosePrice" in data:
-        score += 20
-
-    if "openPrice" in data:
-        score += 10
-
-    if "highPrice" in data:
-        score += 10
-
-    if "lowPrice" in data:
-        score += 10
-
-    if "accumulatedTradingVolume" in data:
-        score += 10
-
-    return {
-        "score": score,
-        "raw": data,
-        "current": current,
-        "previous": previous,
-        "change": change_amount,
-        "open": open_price,
-        "high": high,
-        "low": low,
-        "volume": volume
-    }
-
-
-def find_quote_candidate(next_data: dict) -> dict:
-    candidates = []
-
-    for data in walk_dicts(next_data):
-        candidate = build_candidate(data)
-
-        if candidate:
-            candidates.append(candidate)
-
-    if not candidates:
-        raise RuntimeError(
-            "현재가·시가·고가·저가·전일 대비 금액이 "
-            "같이 들어 있는 시세 객체를 찾지 못했습니다."
+    for pattern in patterns:
+        matches = re.findall(
+            pattern,
+            page_html,
+            flags=re.DOTALL
         )
 
-    candidates.sort(
-        key=lambda item: item["score"],
-        reverse=True
+        for value in matches:
+            if value not in results:
+                results.append(value)
+
+    return results
+
+
+def get_exact_values(
+    next_data: dict | None,
+    page_html: str,
+    key_names: list[str]
+) -> list[int]:
+    """
+    지정한 정확한 키 이름에서 양수 숫자 후보를 수집합니다.
+    """
+    results = []
+
+    for key_name in key_names:
+        raw_values = []
+
+        if next_data is not None:
+            raw_values.extend(
+                exact_key_values(next_data, key_name)
+            )
+
+        raw_values.extend(
+            exact_html_values(page_html, key_name)
+        )
+
+        for raw_value in raw_values:
+            number = to_int(raw_value)
+
+            if number > 0 and number not in results:
+                results.append(number)
+
+    return results
+
+
+def choose_current_price(candidates: list[int]) -> int:
+    if not candidates:
+        return 0
+
+    # 첫 번째 정확한 closePrice를 우선 사용
+    return candidates[0]
+
+
+def choose_nearby_price(
+    candidates: list[int],
+    current: int,
+    field_name: str,
+    maximum_gap_ratio: float = 0.30
+) -> int:
+    """
+    현재가와 지나치게 차이나는 다른 종목·다른 데이터의 값을 제외합니다.
+    """
+    if not candidates:
+        return 0
+
+    valid = []
+
+    for value in candidates:
+        if current <= 0:
+            valid.append(value)
+            continue
+
+        gap_ratio = abs(value - current) / current
+
+        if gap_ratio <= maximum_gap_ratio:
+            valid.append(value)
+
+    if not valid:
+        print(
+            f"{field_name} 후보가 현재가와 지나치게 차이 납니다:",
+            candidates
+        )
+        return 0
+
+    # 현재가와 가장 가까운 값을 선택
+    return min(
+        valid,
+        key=lambda value: abs(value - current)
     )
 
-    best = candidates[0]
 
-    print("선택된 후보 점수:", best["score"])
-    print(
-        "선택된 원본 객체:",
-        json.dumps(
-            best["raw"],
-            ensure_ascii=False,
-            indent=2
-        )[:5000]
-    )
+def choose_volume(candidates: list[int]) -> int:
+    if not candidates:
+        return 0
 
-    return best
+    # 거래량은 일반적으로 가장 큰 양수 후보를 사용
+    return max(candidates)
 
+
+# --------------------------------------------------
+# 수집값 검증
+# --------------------------------------------------
+
+def validate_stock_data(stock_data: dict):
+    current = stock_data["current"]
+    previous = stock_data["previous"]
+    open_price = stock_data["open"]
+    high = stock_data["high"]
+    low = stock_data["low"]
+    volume = stock_data["volume"]
+
+    errors = []
+
+    if current <= 0:
+        errors.append("현재가를 찾지 못했습니다.")
+
+    if previous <= 0:
+        errors.append(
+            "HTML의 previousClosePrice 전일가를 찾지 못했습니다."
+        )
+
+    if open_price <= 0:
+        errors.append("시가를 찾지 못했습니다.")
+
+    if high <= 0:
+        errors.append("고가를 찾지 못했습니다.")
+
+    if low <= 0:
+        errors.append("저가를 찾지 못했습니다.")
+
+    if high > 0 and low > 0 and high < low:
+        errors.append("고가가 저가보다 낮습니다.")
+
+    if (
+        current > 0
+        and high > 0
+        and low > 0
+        and not low <= current <= high
+    ):
+        errors.append(
+            "현재가가 저가와 고가 범위에 들어 있지 않습니다."
+        )
+
+    if (
+        open_price > 0
+        and high > 0
+        and low > 0
+        and not low <= open_price <= high
+    ):
+        errors.append(
+            "시가가 저가와 고가 범위에 들어 있지 않습니다."
+        )
+
+    if current > 0 and previous > 0:
+        difference_ratio = abs(current - previous) / previous
+
+        if difference_ratio > 0.30:
+            errors.append(
+                "현재가와 전일가 차이가 30%를 초과합니다."
+            )
+
+    if volume < 0:
+        errors.append("거래량이 음수입니다.")
+
+    if errors:
+        message = "\n".join(
+            f"- {error}"
+            for error in errors
+        )
+
+        raise RuntimeError(
+            "수집 데이터 검증에 실패하여 Firestore 저장을 중단합니다.\n"
+            + message
+        )
+
+
+# --------------------------------------------------
+# 네이버 모바일 페이지 수집
+# --------------------------------------------------
 
 def get_etf_price_from_naver_mobile() -> dict:
     headers = {
@@ -398,30 +388,124 @@ def get_etf_price_from_naver_mobile() -> dict:
 
     response.raise_for_status()
 
-    next_data = extract_next_data(response.text)
+    page_html = response.text
+    next_data = extract_next_data(page_html)
 
     if next_data is None:
-        raise RuntimeError(
-            "네이버 모바일 페이지에서 __NEXT_DATA__를 찾지 못했습니다."
+        print(
+            "주의: __NEXT_DATA__ JSON 파싱 실패. "
+            "HTML 원문에서 정확한 키를 검색합니다."
         )
 
-    quote = find_quote_candidate(next_data)
+    # 현재가: 정확한 closePrice 계열만 사용
+    current_candidates = get_exact_values(
+        next_data,
+        page_html,
+        [
+            "closePrice",
+            "currentPrice",
+            "nowVal"
+        ]
+    )
 
-    current = quote["current"]
-    previous = quote["previous"]
-    change = quote["change"]
+    current = choose_current_price(
+        current_candidates
+    )
 
-    # 핵심 교차검증
-    if current - previous != change:
-        raise RuntimeError(
-            "현재가, 전일가, 전일 대비 금액의 계산이 일치하지 않습니다."
-        )
+    # 전일가: 전일가 전용 필드만 사용
+    # compareToPreviousClosePrice는 등락금액일 수 있으므로 제외
+    previous_candidates = get_exact_values(
+        next_data,
+        page_html,
+        [
+            "previousClosePrice",
+            "prevClosePrice"
+        ]
+    )
+
+    previous = choose_nearby_price(
+        previous_candidates,
+        current,
+        "전일가"
+    )
+
+    open_candidates = get_exact_values(
+        next_data,
+        page_html,
+        [
+            "openPrice",
+            "openingPrice"
+        ]
+    )
+
+    open_price = choose_nearby_price(
+        open_candidates,
+        current,
+        "시가"
+    )
+
+    high_candidates = get_exact_values(
+        next_data,
+        page_html,
+        [
+            "highPrice",
+            "highestPrice"
+        ]
+    )
+
+    high = choose_nearby_price(
+        high_candidates,
+        current,
+        "고가"
+    )
+
+    low_candidates = get_exact_values(
+        next_data,
+        page_html,
+        [
+            "lowPrice",
+            "lowestPrice"
+        ]
+    )
+
+    low = choose_nearby_price(
+        low_candidates,
+        current,
+        "저가"
+    )
+
+    volume_candidates = get_exact_values(
+        next_data,
+        page_html,
+        [
+            "accumulatedTradingVolume",
+            "tradingVolume",
+            "volume"
+        ]
+    )
+
+    volume = choose_volume(
+        volume_candidates
+    )
+
+    print("현재가 후보:", current_candidates)
+    print("전일가 후보:", previous_candidates)
+    print("시가 후보:", open_candidates)
+    print("고가 후보:", high_candidates)
+    print("저가 후보:", low_candidates)
+    print("거래량 후보:", volume_candidates)
 
     now = now_kst()
     now_text = now.strftime("%Y-%m-%d %H:%M:%S")
 
+    change = (
+        current - previous
+        if current > 0 and previous > 0
+        else 0
+    )
+
     change_rate = (
-        ((current - previous) / previous) * 100
+        (change / previous) * 100
         if previous > 0
         else 0
     )
@@ -431,28 +515,37 @@ def get_etf_price_from_naver_mobile() -> dict:
         "name": STOCK_NAME,
         "code": STOCK_CODE,
         "naverUrl": ETF_NAVER_URL,
+
         "current": current,
+
+        # HTML의 previousClosePrice를 그대로 저장
         "previous": previous,
+
         "change": change,
         "changeRate": round(change_rate, 4),
-        "open": quote["open"],
-        "high": quote["high"],
-        "low": quote["low"],
-        "volume": quote["volume"],
+        "open": open_price,
+        "high": high,
+        "low": low,
+        "volume": volume,
+
         "market": "한국",
-        "source": "NAVER_MOBILE_EXACT_OBJECT",
+        "source": "NAVER_MOBILE_EXACT_FIELDS",
         "updatedAt": now_text,
         "timestamp": firestore.SERVER_TIMESTAMP
+    }
+
+    validate_stock_data(stock_data)
+
+    printable_data = {
+        key: value
+        for key, value in stock_data.items()
+        if key != "timestamp"
     }
 
     print(
         "최종 수집 데이터:",
         json.dumps(
-            {
-                key: value
-                for key, value in stock_data.items()
-                if key != "timestamp"
-            },
+            printable_data,
             ensure_ascii=False,
             indent=2
         )
@@ -460,6 +553,10 @@ def get_etf_price_from_naver_mobile() -> dict:
 
     return stock_data
 
+
+# --------------------------------------------------
+# Firestore 저장
+# --------------------------------------------------
 
 def update_firestore(db, stock_data: dict):
     now = now_kst()
@@ -528,10 +625,16 @@ def update_firestore(db, stock_data: dict):
     print("현재가:", stock_data["current"])
     print("전일가:", stock_data["previous"])
     print("등락:", stock_data["change"])
+    print("등락률:", stock_data["changeRate"])
     print("시가:", stock_data["open"])
     print("고가:", stock_data["high"])
     print("저가:", stock_data["low"])
+    print("거래량:", stock_data["volume"])
 
+
+# --------------------------------------------------
+# 실행
+# --------------------------------------------------
 
 def main():
     print("ETF 데이터 업데이트 시작")
@@ -540,13 +643,13 @@ def main():
     print("Firestore 연결 성공")
 
     stock_data = get_etf_price_from_naver_mobile()
+    print("네이버 모바일 ETF 데이터 수집 성공")
 
-    # 저장 전에 터미널에서 반드시 확인
     print(
-        "검증 결과:",
-        f"현재가 {stock_data['current']} / "
-        f"전일가 {stock_data['previous']} / "
-        f"등락 {stock_data['change']}"
+        "저장 전 검증:",
+        f"현재가 {stock_data['current']}원 / "
+        f"전일가 {stock_data['previous']}원 / "
+        f"등락 {stock_data['change']}원"
     )
 
     update_firestore(db, stock_data)

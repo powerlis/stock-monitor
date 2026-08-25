@@ -39,10 +39,14 @@ KST = ZoneInfo("Asia/Seoul")
 # --------------------------------------------------
 
 def init_firestore():
-    """Firebase Admin SDK를 초기화하고 Firestore 객체를 반환합니다."""
     if not firebase_admin._apps:
         cred = credentials.Certificate(FIREBASE_KEY_FILE)
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(
+            cred,
+            {
+                "projectId": "balancegame-43c9b"
+            }
+        )
 
     return firestore.client()
 

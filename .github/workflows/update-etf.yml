@@ -20,7 +20,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests python-dotenv firebase-admin yfinance
+          pip install \
+            requests==2.32.5 \
+            python-dotenv==1.1.1 \
+            firebase-admin==7.1.0 \
+            google-cloud-firestore==2.21.0 \
+            yfinance==0.2.65
 
       - name: Create Firebase service key
         run: |

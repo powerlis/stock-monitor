@@ -41,12 +41,7 @@ KST = ZoneInfo("Asia/Seoul")
 def init_firestore():
     if not firebase_admin._apps:
         cred = credentials.Certificate(FIREBASE_KEY_FILE)
-        firebase_admin.initialize_app(
-            cred,
-            {
-                "projectId": "balancegame-43c9b"
-            }
-        )
+        firebase_admin.initialize_app(cred)
 
     return firestore.client()
 

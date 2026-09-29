@@ -86,7 +86,7 @@ async function loadComponentsFromFirestore() {
   querySnapshot.forEach((docSnap) => {
     const data = docSnap.data();
 
-    if (data.type === "COMPONENT") {
+    if (data.type === "COMPONENT" && data.active === true) {
       const current = Number(data.current || 0);
       const previous = Number(data.previous || 0);
       const diff = current - previous;
@@ -405,6 +405,20 @@ function renderPortfolioChart() {
     componentStocks.map(stock =>
       Number(stock.weight || 0) * 100
     );
+
+  if (!componentStocks.some(stock => stock.weight != null)) {
+    canvas.style.display = "none";
+    let note = document.getElementById("portfolioWeightNote");
+    if (!note) {
+      note = document.createElement("p");
+      note.id = "portfolioWeightNote";
+      canvas.parentElement.appendChild(note);
+    }
+    note.textContent = "공식 비중 자료 확인 후 차트가 표시됩니다.";
+    return;
+  }
+  canvas.style.display = "";
+  document.getElementById("portfolioWeightNote")?.remove();
 
   portfolioChart = new Chart(canvas, {
     type: "doughnut",

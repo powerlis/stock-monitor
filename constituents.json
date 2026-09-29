@@ -1,0 +1,167 @@
+{
+  "source": "Solactive China Humanoid Robotics Index TR (DE000SL0PWT6)",
+  "asOf": "2026-09-29",
+  "sourceUrl": "https://legacy2.solactive.com/indices/gbs/?index=DE000SL0PWT6",
+  "stocks": [
+    {
+      "rank": 1,
+      "name": "Shenzhen Inovance",
+      "code": "300124.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/300124.SZ/total"
+    },
+    {
+      "rank": 2,
+      "name": "Suzhou Veichi Electric",
+      "code": "688698.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/688698.SS/total"
+    },
+    {
+      "rank": 3,
+      "name": "Kinco Automation",
+      "code": "688160.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/688160.SS/total"
+    },
+    {
+      "rank": 4,
+      "name": "Ningbo Zhongda Leader",
+      "code": "002896.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/002896.SZ/total"
+    },
+    {
+      "rank": 5,
+      "name": "Estun Automation",
+      "code": "002747.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/002747.SZ/total"
+    },
+    {
+      "rank": 6,
+      "name": "Zhejiang Sanhua",
+      "code": "002050.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/002050.SZ/total"
+    },
+    {
+      "rank": 7,
+      "name": "CATL",
+      "code": "300750.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/300750.SZ/total"
+    },
+    {
+      "rank": 8,
+      "name": "UBTECH Robotics",
+      "code": "9880.HK",
+      "market": "홍콩",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/9880.HK/total"
+    },
+    {
+      "rank": 9,
+      "name": "Wolong Electric",
+      "code": "600580.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/600580.SS/total"
+    },
+    {
+      "rank": 10,
+      "name": "Zhejiang Shuanghuan",
+      "code": "002472.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/002472.SZ/total"
+    },
+    {
+      "rank": 11,
+      "name": "Luxshare Precision",
+      "code": "002475.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/002475.SZ/total"
+    },
+    {
+      "rank": 12,
+      "name": "Yushu Technology (Unitree)",
+      "code": "688836.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/688836.SS/total"
+    },
+    {
+      "rank": 13,
+      "name": "Ningbo Tuopu",
+      "code": "601689.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/601689.SS/total"
+    },
+    {
+      "rank": 14,
+      "name": "Ningbo Zhenyu Technology",
+      "code": "300953.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/300953.SZ/total"
+    },
+    {
+      "rank": 15,
+      "name": "Leader Harmonious Drive",
+      "code": "688017.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/688017.SS/total"
+    },
+    {
+      "rank": 16,
+      "name": "Ningbo Joyson Electronic",
+      "code": "600699.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/600699.SS/total"
+    },
+    {
+      "rank": 17,
+      "name": "Shenzhen Megmeet",
+      "code": "002851.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/002851.SZ/total"
+    },
+    {
+      "rank": 18,
+      "name": "Jiangsu Hengli Hydraulic",
+      "code": "601100.SS",
+      "market": "중국 상해",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/601100.SS/total"
+    },
+    {
+      "rank": 19,
+      "name": "Guangdong LY Intelligent",
+      "code": "002600.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/002600.SZ/total"
+    },
+    {
+      "rank": 20,
+      "name": "Zhejiang Changsheng",
+      "code": "300718.SZ",
+      "market": "중국 심천",
+      "weight": null,
+      "naverUrl": "https://m.stock.naver.com/worldstock/stock/300718.SZ/total"
+    }
+  ]
+}

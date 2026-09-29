@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import time
 from datetime import datetime
 
@@ -7,18 +9,9 @@ from firebase_admin import credentials, firestore
 
 FIREBASE_KEY_FILE = "firebase-service-key.json"
 
-COMPONENT_STOCKS = [
-    {"rank": 1, "name": "Inovance Technology(회천기술)", "code": "300124.SZ", "weight": 0.09, "market": "중국 심천", "naverUrl": "https://m.stock.naver.com/worldstock/stock/300124.SZ/total"},
-    {"rank": 2, "name": "UBTECH Robotics(유비테크 로보틱스)", "code": "9880.HK", "weight": 0.0836, "market": "홍콩", "naverUrl": "https://m.stock.naver.com/worldstock/stock/9880.HK/total"},
-    {"rank": 3, "name": "Ningbo Tuopu Group(탁보그룹)", "code": "601689.SH", "weight": 0.082, "market": "중국 상해", "naverUrl": "https://m.stock.naver.com/worldstock/stock/601689.SS/total"},
-    {"rank": 4, "name": "DOBOT(도봇)", "code": "2432.HK", "weight": 0.0638, "market": "홍콩", "naverUrl": "https://m.stock.naver.com/worldstock/stock/2432.HK/total"},
-    {"rank": 5, "name": "Leader Harmonious Drive Systems(녹적해파)", "code": "688017.SH", "weight": 0.0606, "market": "중국 상해", "naverUrl": "https://m.stock.naver.com/worldstock/stock/688017.SH/total"},
-    {"rank": 6, "name": "Estun Automation(애사돈자동화)", "code": "002747.SZ", "weight": 0.05, "market": "중국 심천", "naverUrl": "https://m.stock.naver.com/worldstock/stock/002747.SZ/total"},
-    {"rank": 7, "name": "Siasun Robot & Automation(신송로봇)", "code": "300024.SZ", "weight": 0.05, "market": "중국 심천", "naverUrl": "https://m.stock.naver.com/worldstock/stock/300024.SZ/total"},
-    {"rank": 8, "name": "Shenzhen Megmeet(맥격미특전기)", "code": "002851.SZ", "weight": 0.045, "market": "중국 심천", "naverUrl": "https://m.stock.naver.com/worldstock/stock/002851.SZ/total"},
-    {"rank": 9, "name": "Efort Intelligent Equipment(애부특지능기인)", "code": "688165.SH", "weight": 0.04, "market": "중국 상해", "naverUrl": "https://m.stock.naver.com/worldstock/stock/688165.SS/total"},
-    {"rank": 10, "name": "Zhejiang Sanhua Intelligent(삼화)", "code": "002050.SZ", "weight": 0.04, "market": "중국 심천", "naverUrl": "https://m.stock.naver.com/worldstock/stock/002050.SZ/total"},
-]
+COMPONENT_STOCKS = json.loads(
+    Path(__file__).with_name("constituents.json").read_text(encoding="utf-8")
+)["stocks"]
 
 def init_firestore():
     if not firebase_admin._apps:
@@ -105,6 +98,7 @@ def get_quote(stock):
         "yahooCode": yahoo_code,
         "naverUrl": stock["naverUrl"],
         "weight": stock["weight"],
+        "active": True,
         "current": current,
         "previous": previous,
         "open": open_price,
@@ -160,9 +154,22 @@ def update_firestore(db, stock_data):
 
     print(f"저장 완료: {code} / {stock_data['name']} / 현재가 {stock_data['current']}")
 
+def sync_constituents(db):
+    """Refresh membership before quotes; keep old price history intact."""
+    active = {stock["code"] for stock in COMPONENT_STOCKS}
+    for snapshot in db.collection("stocks").stream():
+        if snapshot.to_dict().get("type") == "COMPONENT" and snapshot.id not in active:
+            snapshot.reference.set({"active": False}, merge=True)
+    for stock in COMPONENT_STOCKS:
+        db.collection("stocks").document(stock["code"]).set(
+            {**stock, "type": "COMPONENT", "active": True}, merge=True
+        )
+
 def main():
     db = init_firestore()
     print("Firestore 연결 성공")
+
+    sync_constituents(db)
 
     for stock in COMPONENT_STOCKS:
         try:

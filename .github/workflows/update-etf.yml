@@ -2,8 +2,13 @@ name: Update ETF Price
 
 on:
   schedule:
-    - cron: "* * * * *"
+    # 09:07–16:52 KST, weekdays; about every 15 minutes.
+    - cron: "7,22,37,52 0-7 * * 1-5"
   workflow_dispatch:
+
+concurrency:
+  group: stock-monitor-update
+  cancel-in-progress: false
 
 jobs:
   update-etf:
@@ -20,12 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install \
-            requests==2.32.5 \
-            python-dotenv==1.1.1 \
-            firebase-admin==7.1.0 \
-            google-cloud-firestore==2.21.0 \
-            yfinance==0.2.65
+          pip install requests python-dotenv firebase-admin yfinance
 
       - name: Create Firebase service key
         run: |

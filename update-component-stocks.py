@@ -158,12 +158,17 @@ def sync_constituents(db):
     """Refresh membership before quotes; keep old price history intact."""
     active = {stock["code"] for stock in COMPONENT_STOCKS}
     for snapshot in db.collection("stocks").stream():
-        if snapshot.to_dict().get("type") == "COMPONENT" and snapshot.id not in active:
+        data = snapshot.to_dict()
+        if data.get("type") == "COMPONENT" and snapshot.id not in active and data.get("active") is not False:
             snapshot.reference.set({"active": False}, merge=True)
     for stock in COMPONENT_STOCKS:
-        db.collection("stocks").document(stock["code"]).set(
-            {**stock, "type": "COMPONENT", "active": True}, merge=True
-        )
+        ref = db.collection("stocks").document(stock["code"])
+        snapshot = ref.get()
+        metadata = {**stock, "type": "COMPONENT", "active": True}
+        old = snapshot.to_dict() if snapshot.exists else {}
+        changes = {key: value for key, value in metadata.items() if old.get(key) != value}
+        if changes:
+            ref.set(changes, merge=True)
 
 def main():
     db = init_firestore()
